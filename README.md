@@ -1,8 +1,8 @@
 # Every Cent Counts finance tracker
 
-Test the application at [every-cent-count.vercel.app](https://every-cent-count.vercel.app/)
+Simple finance app tracker 
 
-## Run it
+Test the application at [every-cent-count.vercel.app](https://every-cent-count.vercel.app/)
 
 ## What it includes
 
