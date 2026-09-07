@@ -49,7 +49,13 @@ $('#menuButton').addEventListener('click', () => $('.sidebar').classList.toggle(
 
 async function initialize() {
   const { data: { session } } = await db.auth.getSession();
-if (!session) { window.location.replace('signin.html'); return; }
+  if (!session) { window.location.replace('signin.html'); return; }
+  const { data: { user }, error } = await db.auth.getUser();
+  if (error || !user) {
+    await db.auth.signOut({ scope: 'local' });
+    window.location.replace('signin.html');
+    return;
+  }
   await loadData();
 }
 

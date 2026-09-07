@@ -171,7 +171,13 @@ async function initialize() {
   const { data: { session }, error } = await db.auth.getSession();
   if (error) { operationError(error); return; }
   if (!session) { window.location.replace('signin.html'); return; }
-  user = session.user; await loadData();
+  const { data: { user: verifiedUser }, error: verificationError } = await db.auth.getUser();
+  if (verificationError || !verifiedUser) {
+    await db.auth.signOut({ scope: 'local' });
+    window.location.replace('signin.html');
+    return;
+  }
+  user = verifiedUser; await loadData();
 }
 
 db.auth.onAuthStateChange((_event, session) => { if (session && !user) { user = session.user; $('#authModal').close(); loadData(); } });

@@ -49,7 +49,13 @@ async function initialize() {
   const shouldSignOut = new URLSearchParams(window.location.search).has('signout');
   if (shouldSignOut) { await db.auth.signOut({ scope: 'local' }); return; }
   const { data: { session } } = await db.auth.getSession();
-  if (session) window.location.replace('index.html');
+  if (!session) return;
+  const { data: { user }, error } = await db.auth.getUser();
+  if (error || !user) {
+    await db.auth.signOut({ scope: 'local' });
+    return;
+  }
+  window.location.replace('index.html');
 }
 
 initialize();
