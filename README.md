@@ -11,7 +11,7 @@ Test the application at every-cent-count.vercel.app
 - Category and daily-spending views
 - Add and remove transactions
 - Month navigation
-- Browser `localStorage` persistence (your entries stay on that device/browser)
+- Overall yearly expenses and income
 
 ## Tech used
 - HTML/CSS
