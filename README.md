@@ -1,6 +1,6 @@
 # Every Cent Counts finance tracker
 
-A lightweight, local-first personal finance dashboard. It runs without a build step or account.
+Test the application at ...
 
 ## Run it
 
