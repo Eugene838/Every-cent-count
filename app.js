@@ -56,7 +56,7 @@ function render() {
   const used = data.budget ? Math.round((spending / data.budget) * 100) : 0;
   const usedCapped = Math.min(used, 100);
   const monthName = new Intl.DateTimeFormat('en-SG', { month: 'long', year: 'numeric' }).format(currentDate);
-  $('#monthLabel').innerHTML = `${monthName} <span>⌄</span>`;
+  $('#monthLabel').textContent = monthName;
   $('#greeting').textContent = `${new Intl.DateTimeFormat('en-SG', { month: 'long' }).format(currentDate).toUpperCase()} AT A GLANCE`;
   $('#balanceValue').textContent = money(balance);
   const latestAdjustment = data.balanceAdjustments.at(-1);
