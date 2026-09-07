@@ -4,8 +4,6 @@ A lightweight, local-first personal finance dashboard. It runs without a build s
 
 ## Run it
 
-Open `index.html` in a modern browser. The tracker starts empty, ready for your own budget and transactions.
-
 ## What it includes
 
 - Income, expenses, available balance, and savings-rate summaries
@@ -15,4 +13,8 @@ Open `index.html` in a modern browser. The tracker starts empty, ready for your 
 - Month navigation
 - Browser `localStorage` persistence (your entries stay on that device/browser)
 
-To clear your own saved entries, clear this site's browser storage.
+Tech used
+HTML/CSS
+JavaScript
+Supabase(PostgreSQL)
+
