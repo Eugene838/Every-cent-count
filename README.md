@@ -1,6 +1,6 @@
 # Every Cent Counts finance tracker
 
-Test the application at every-cent-count.vercel.app
+Test the application at [every-cent-count.vercel.app](https://every-cent-count.vercel.app/)
 
 ## Run it
 
