@@ -13,7 +13,7 @@ A lightweight, local-first personal finance dashboard. It runs without a build s
 - Month navigation
 - Browser `localStorage` persistence (your entries stay on that device/browser)
 
-Tech used
+## Tech used
 HTML/CSS
 JavaScript
 Supabase(PostgreSQL)
