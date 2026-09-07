@@ -14,7 +14,7 @@ A lightweight, local-first personal finance dashboard. It runs without a build s
 - Browser `localStorage` persistence (your entries stay on that device/browser)
 
 ## Tech used
-HTML/CSS
-JavaScript
-Supabase(PostgreSQL)
+- HTML/CSS
+- JavaScript
+- Supabase(PostgreSQL)
 
