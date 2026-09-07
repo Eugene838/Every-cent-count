@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#10231d" />
+    <title>Yearly overview — Every Cent Counts</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <a class="brand" href="index.html" aria-label="Every Cent Counts home"><span class="brand-mark">E</span><span>Every Cent Counts</span></a>
+        <nav class="nav" aria-label="Main navigation">
+          <a href="index.html"><span>▦</span>Overview</a>
+          <a href="index.html#transactions"><span>⇅</span>Transactions</a>
+          <a href="index.html#budgets"><span>◔</span>Budgets</a>
+          <a href="index.html#insights"><span>✦</span>Insights</a>
+          <a class="active" href="yearly.html"><span>◫</span>Yearly</a>
+        </nav>
+        <div class="sidebar-bottom">
+          <a class="settings-link" href="index.html#budgets"><span>⊙</span>Monthly budget</a>
+          <div class="profile"><div class="avatar">EU</div><div><strong>Eugene</strong><small>Personal account</small></div><a class="signout-button" href="signin.html?signout=1">Sign out</a></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="topbar">
+          <button class="mobile-menu" id="menuButton" aria-label="Open navigation">☰</button>
+          <div class="period-control">
+            <button id="previousYear" aria-label="Previous year">‹</button>
+            <button class="month-label" id="yearLabel">2026</button>
+            <button id="nextYear" aria-label="Next year">›</button>
+          </div>
+          <div class="top-actions"><a class="add-button" href="index.html"><span>＋</span> Add transaction</a></div>
+        </header>
+
+        <section class="content yearly-page">
+          <div class="intro"><div><p class="eyebrow">YEARLY OVERVIEW</p><h1>Your year, in<br /><em>one clear view.</em></h1></div><p class="yearly-page-copy">Every month’s income, spending, balance adjustments, and budget progress in one place.</p></div>
+          <section class="yearly-page-metrics" id="yearlySummary"></section>
+          <section class="panel yearly-panel">
+            <div class="panel-heading"><div><p class="section-kicker">MONTH BY MONTH</p><h2 id="yearlyTitle">2026 financial summary</h2></div><span class="yearly-note">SGD</span></div>
+            <div class="yearly-table">
+              <div class="yearly-head"><span>MONTH</span><span>INCOME</span><span>SPENDING</span><span>NET CHANGE</span><span>BUDGET</span></div>
+              <div id="yearlyRows"></div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js?v=2"></script>
+    <script src="yearly.js?v=2"></script>
+  </body>
+</html>

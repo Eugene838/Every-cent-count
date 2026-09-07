@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#10231d" />
+    <title>Sign in — Every Cent Counts</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="auth-page" data-mode="signin">
+    <main class="signin-card">
+      <a class="brand" href="signin.html"><span class="brand-mark">E</span><span>Every Cent Counts</span></a>
+      <div class="signin-intro"><p class="eyebrow">YOUR PRIVATE FINANCE TRACKER</p><h1 id="authTitle">Welcome back.</h1><p id="authCopy">Sign in to see your money clearly.</p></div>
+      <form id="authForm">
+        <label>Email<input name="email" type="email" autocomplete="email" required placeholder="you@example.com" /></label>
+        <label>Password<input name="password" type="password" autocomplete="current-password" minlength="8" required placeholder="At least 8 characters" /></label>
+        <p class="auth-message" id="authMessage" role="status"></p>
+        <button class="submit-transaction" type="submit" id="authSubmit">Sign in</button>
+        <a class="auth-switch" href="signup.html">Need an account? Sign up</a>
+      </form>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js?v=2"></script>
+    <script src="signin.js?v=3"></script>
+  </body>
+</html>
