@@ -91,6 +91,7 @@ function renderTransactions(transactions) {
   const pageStart = (transactionPage - 1) * transactionsPerPage;
   const recent = newestFirst.slice(pageStart, pageStart + transactionsPerPage);
   list.innerHTML = recent.map(x => `<div class="transaction-row"><div class="transaction-name">${icon(x.category)}<span>${x.description}</span></div><span class="transaction-category">${x.category}</span><span class="transaction-date">${dateLabel(x.date)}</span><span class="transaction-amount ${x.type}">${x.type === 'income' ? '+' : '−'}${money(x.amount)} <button class="delete-transaction" data-id="${x.id}" aria-label="Delete ${x.description}">×</button></span></div>`).join('');
+  list.classList.toggle('has-transactions', Boolean(recent.length));
   list.classList.remove('page-enter-next', 'page-enter-previous');
   if (transactionPageAnimation) {
     void list.offsetWidth;
