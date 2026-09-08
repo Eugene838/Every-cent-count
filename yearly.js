@@ -12,14 +12,16 @@ const $ = (selector) => document.querySelector(selector);
 const money = (amount) => new Intl.NumberFormat('en-SG', { style: 'currency', currency: 'SGD', minimumFractionDigits: 2 }).format(amount);
 const dateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const transactionFromRow = (row) => ({ amount: Number(row.amount), type: row.type, date: row.transaction_date });
-const recurringFromRow = (row) => ({ amount: Number(row.amount), type: row.type, recurrence: row.recurrence, startDate: row.start_date, cycleEndDate: row.cycle_end_date });
+const recurringFromRow = (row) => ({ amount: Number(row.amount), type: row.type, recurrence: row.recurrence, startDate: row.start_date, endDate: row.end_date, cycleEndDate: row.cycle_end_date });
 const plusDays = (date, amount) => { const next = new Date(date); next.setDate(next.getDate() + amount); return next; };
 const addMonths = (date, count) => { const next = new Date(date.getFullYear(), date.getMonth() + count, 1); next.setDate(Math.min(date.getDate(), new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate())); return next; };
 function scheduledTransactions() {
   const startLimit = new Date(selectedYear, 0, 1); const endLimit = new Date(selectedYear, 11, 31);
   return data.recurringTransactions.flatMap(template => {
     const start = new Date(`${template.startDate}T00:00:00`); let date = new Date(start); const entries = []; let safety = 0;
-    while (date <= endLimit && safety++ < 1000) {
+    const scheduleEnd = template.endDate ? new Date(`${template.endDate}T00:00:00`) : endLimit;
+    const lastOccurrence = scheduleEnd < endLimit ? scheduleEnd : endLimit;
+    while (date <= lastOccurrence && safety++ < 1000) {
       if (date >= startLimit) entries.push({ amount: template.amount, type: template.type, date: dateKey(date) });
       if (template.recurrence === 'daily') date = plusDays(date, 1);
       else if (template.recurrence === 'monthly') date = addMonths(date, 1);
@@ -67,7 +69,7 @@ function getWeeklySpending(monthIndex, entries) {
 async function loadData() {
   const [transactionResult, recurringResult, budgetResult, adjustmentResult] = await Promise.all([
     db.from('transactions').select('amount, type, transaction_date').order('transaction_date', { ascending: false }),
-    db.from('recurring_transactions').select('amount, type, recurrence, start_date, cycle_end_date'),
+    db.from('recurring_transactions').select('amount, type, recurrence, start_date, end_date, cycle_end_date'),
     db.from('budgets').select('monthly_amount').maybeSingle(),
     db.from('balance_adjustments').select('amount, adjustment_date')
   ]);

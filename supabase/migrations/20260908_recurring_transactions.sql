@@ -9,13 +9,15 @@ create table if not exists public.recurring_transactions (
   type text not null check (type in ('income', 'expense')),
   recurrence text not null check (recurrence in ('daily', 'monthly', 'quarterly', 'yearly', 'custom')),
   start_date date not null,
+  end_date date,
   cycle_end_date date,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (
     (recurrence = 'custom' and cycle_end_date is not null and cycle_end_date > start_date)
     or (recurrence <> 'custom' and cycle_end_date is null)
-  )
+  ),
+  check (end_date is null or end_date >= start_date)
 );
 
 alter table public.recurring_transactions enable row level security;

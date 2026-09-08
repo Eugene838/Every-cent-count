@@ -49,7 +49,7 @@ const getMonthTransactions = () => data.transactions.filter((entry) => entry.dat
 const currentBalance = () => data.transactions.reduce((total, entry) => total + (entry.type === 'income' ? entry.amount : -entry.amount), 0) + data.balanceAdjustments.reduce((total, entry) => total + entry.amount, 0);
 const icon = (category) => { const item = categoryInfo[category] || categoryInfo.Other; return `<span class="category-icon" style="background:${item.color}">${item.icon}</span>`; };
 const transactionFromRow = (row) => ({ id: row.id, description: row.description, note: row.note || '', category: row.category, amount: Number(row.amount), type: row.type, date: row.transaction_date, createdAt: row.created_at, recurring: false });
-const recurringFromRow = (row) => ({ id: row.id, description: row.description, note: row.note || '', category: row.category, amount: Number(row.amount), type: row.type, recurrence: row.recurrence, startDate: row.start_date, cycleEndDate: row.cycle_end_date, createdAt: row.created_at });
+const recurringFromRow = (row) => ({ id: row.id, description: row.description, note: row.note || '', category: row.category, amount: Number(row.amount), type: row.type, recurrence: row.recurrence, startDate: row.start_date, endDate: row.end_date, cycleEndDate: row.cycle_end_date, createdAt: row.created_at });
 const addMonths = (date, count) => { const next = new Date(date.getFullYear(), date.getMonth() + count, 1); next.setDate(Math.min(date.getDate(), new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate())); return next; };
 const recurrenceLabel = (entry) => entry.recurrence === 'custom' ? `Custom · ${dateLabel(entry.startDate)}–${dateLabel(entry.cycleEndDate)}` : entry.recurrence[0].toUpperCase() + entry.recurrence.slice(1);
 function scheduledTransactions() {
@@ -60,7 +60,9 @@ function scheduledTransactions() {
     const occurrences = [];
     let date = new Date(start);
     let safety = 0;
-    while (date <= today && safety++ < 1000) {
+    const endDate = template.endDate ? new Date(`${template.endDate}T00:00:00`) : today;
+    const lastOccurrence = endDate < today ? endDate : today;
+    while (date <= lastOccurrence && safety++ < 1000) {
       if (date >= earliest) occurrences.push({ ...template, id: `recurring:${template.id}:${dateKey(date)}`, date: dateKey(date), recurring: true, recurringId: template.id, createdAt: template.createdAt });
       if (template.recurrence === 'daily') date = plusDays(date, 1);
       else if (template.recurrence === 'monthly') date = addMonths(date, 1);
@@ -287,7 +289,9 @@ function renderBalanceHistory() {
 function updateCategoryOptions() { $('#categoryInput').innerHTML = (selectedType === 'income' ? incomeCategories : expenseCategories).map(x => `<option>${x}</option>`).join(''); }
 function setTransactionType(type) { selectedType = type; document.querySelectorAll('.type-choice').forEach(x => x.classList.toggle('active', x.dataset.type === type)); updateCategoryOptions(); }
 function updateRecurrenceFields() {
+  const recurring = $('#recurrenceInput').value !== 'once';
   const custom = $('#recurrenceInput').value === 'custom';
+  $('#recurrenceEndField').hidden = !recurring;
   $('#customCycleFields').hidden = !custom;
   $('#transactionForm').elements.cycleStart.required = custom;
   $('#transactionForm').elements.cycleEnd.required = custom;
@@ -309,6 +313,7 @@ function openTransactionModal(transaction = null) {
     form.elements.recurrence.value = transaction.recurring ? transaction.recurrence : 'once';
     form.elements.cycleStart.value = transaction.recurring ? transaction.startDate : '';
     form.elements.cycleEnd.value = transaction.recurring?.cycleEndDate || '';
+    form.elements.recurrenceEnd.value = transaction.recurring?.endDate || '';
   } else {
     $('#transactionModalKicker').textContent = 'NEW ENTRY';
     $('#transactionModalTitle').textContent = 'Add transaction';
@@ -317,6 +322,7 @@ function openTransactionModal(transaction = null) {
     setTransactionType('expense');
     form.elements.date.value = dateKey(new Date());
     form.elements.recurrence.value = 'once';
+    form.elements.recurrenceEnd.value = '';
   }
   updateRecurrenceFields();
   $('#transactionModal').showModal();
@@ -328,11 +334,15 @@ $('#openTransactionModal').addEventListener('click', () => openTransactionModal(
 $('#transactionForm').addEventListener('submit', async (event) => {
   event.preventDefault(); const form = new FormData(event.target);
   const recurrence = form.get('recurrence');
+  const startDate = recurrence === 'custom' ? form.get('cycleStart') : form.get('date');
   if (recurrence === 'custom' && form.get('cycleEnd') <= form.get('cycleStart')) {
     window.alert('The custom cycle end date must be after its start date.'); return;
   }
+  if (recurrence !== 'once' && form.get('recurrenceEnd') && form.get('recurrenceEnd') < startDate) {
+    window.alert('The repeat end date must be on or after the start date.'); return;
+  }
   const transactionValues = { description: form.get('description').trim(), note: form.get('note').trim() || null, category: form.get('category'), amount: Number(form.get('amount')), type: selectedType, transaction_date: form.get('date') };
-  const recurringValues = { description: form.get('description').trim(), note: form.get('note').trim() || null, category: form.get('category'), amount: Number(form.get('amount')), type: selectedType, recurrence, start_date: recurrence === 'custom' ? form.get('cycleStart') : form.get('date'), cycle_end_date: recurrence === 'custom' ? form.get('cycleEnd') : null, updated_at: new Date().toISOString() };
+  const recurringValues = { description: form.get('description').trim(), note: form.get('note').trim() || null, category: form.get('category'), amount: Number(form.get('amount')), type: selectedType, recurrence, start_date: startDate, end_date: form.get('recurrenceEnd') || null, cycle_end_date: recurrence === 'custom' ? form.get('cycleEnd') : null, updated_at: new Date().toISOString() };
   let result;
   if (recurrence === 'once' && editingRecurringId) {
     const removal = await db.from('recurring_transactions').delete().eq('id', editingRecurringId);
