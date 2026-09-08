@@ -219,7 +219,7 @@ function renderTransactions(transactions) {
   const list = $('#transactionList');
   $('#transactions').classList.toggle('bulk-editing', bulkEditMode);
   $('#toggleBulkEdit').textContent = bulkEditMode ? 'Done' : 'Edit';
-  const newestFirst = [...transactions].sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const newestFirst = transactions.filter(entry => entry.date.startsWith(monthKey(currentDate))).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || '').localeCompare(a.createdAt || ''));
   const totalPages = Math.max(1, Math.ceil(newestFirst.length / transactionsPerPage));
   transactionPage = Math.min(transactionPage, totalPages);
   const pageStart = (transactionPage - 1) * transactionsPerPage;
@@ -417,8 +417,8 @@ $('#balanceForm').addEventListener('submit', async (event) => {
   data.balanceAdjustments.push(adjustmentFromRow(row)); $('#balanceModal').close(); render();
 });
 document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => $(`#${button.dataset.close}`).close()));
-$('#previousMonth').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); render(); });
-$('#nextMonth').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); render(); });
+$('#previousMonth').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); transactionPage = 1; selectedTransactionIds.clear(); render(); });
+$('#nextMonth').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); transactionPage = 1; selectedTransactionIds.clear(); render(); });
 $('#menuButton').addEventListener('click', () => $('.sidebar').classList.toggle('open'));
 function installPageNavigation() {
   document.querySelectorAll('.brand, .nav a, .profile-menu a').forEach(link => link.addEventListener('click', (event) => {
@@ -453,7 +453,7 @@ $('#toggleBulkEdit').addEventListener('click', () => {
   renderTransactions(data.transactions);
 });
 $('#selectAllTransactions').addEventListener('change', (event) => {
-  const newestFirst = [...data.transactions].sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const newestFirst = getMonthTransactions().sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || '').localeCompare(a.createdAt || ''));
   const currentPage = newestFirst.slice((transactionPage - 1) * transactionsPerPage, transactionPage * transactionsPerPage);
   currentPage.forEach(transaction => event.target.checked ? selectedTransactionIds.add(transaction.id) : selectedTransactionIds.delete(transaction.id));
   renderTransactions(data.transactions);
