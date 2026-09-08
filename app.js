@@ -79,8 +79,13 @@ function render() {
 function renderCategories(transactions) {
   const totals = {};
   transactions.filter(x => x.type === 'expense').forEach(x => { totals[x.category] = (totals[x.category] || 0) + x.amount; });
-  const entries = Object.entries(totals).sort((a, b) => b[1] - a[1]).slice(0, 3);
-  $('#categoryList').innerHTML = entries.length ? entries.map(([category, total]) => `<div class="category">${icon(category)}<div class="category-title"><strong>${category}</strong><small>${Math.round((total / Math.max(1, Object.values(totals).reduce((a,b) => a+b, 0))) * 100)}% of spending</small></div><span class="category-amount">${money(total)}</span></div>`).join('') : '<div class="empty-state">Your categories will appear here.</div>';
+  const entries = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+  const totalSpending = Math.max(1, Object.values(totals).reduce((a, b) => a + b, 0));
+  $('#categoryList').innerHTML = entries.length ? entries.map(([category, total]) => {
+    const categoryEntries = transactions.filter(x => x.type === 'expense' && x.category === category).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || '').localeCompare(a.createdAt || ''));
+    const entryList = categoryEntries.map(x => `<li><span>${x.description}</span><span>${dateLabel(x.date)} · ${money(x.amount)}</span></li>`).join('');
+    return `<div class="category" tabindex="0" aria-label="${category} spending details">${icon(category)}<div class="category-title"><strong>${category}</strong><small>${Math.round((total / totalSpending) * 100)}% of spending</small></div><span class="category-amount">${money(total)}</span><div class="category-detail" role="tooltip"><strong>${category} entries this month</strong><ul>${entryList}</ul></div></div>`;
+  }).join('') : '<div class="empty-state">Your categories will appear here.</div>';
 }
 
 function renderTransactions(transactions) {
