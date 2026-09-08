@@ -117,10 +117,16 @@ function renderTransactions(transactions) {
 }
 
 function renderChart(transactions) {
-  const weekly = Array(7).fill(0); const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-  transactions.filter(x => x.type === 'expense').forEach(x => { const day = new Date(`${x.date}T00:00:00`).getDay(); weekly[(day + 6) % 7] += x.amount; });
+  const weekly = Array(7).fill(0); const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']; const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+  const expenses = transactions.filter(x => x.type === 'expense');
+  expenses.forEach(x => { const day = new Date(`${x.date}T00:00:00`).getDay(); weekly[(day + 6) % 7] += x.amount; });
   const max = Math.max(...weekly, 1);
-  $('#barChart').innerHTML = weekly.map((value, index) => `<div class="bar ${index === 5 ? 'current' : ''}" data-value="${money(value)}" style="height:${Math.max(5, (value / max) * 100)}%"></div>`).join('');
+  $('#barChart').innerHTML = weekly.map((value, index) => {
+    const entries = expenses.filter(x => (new Date(`${x.date}T00:00:00`).getDay() + 6) % 7 === index).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || '').localeCompare(a.createdAt || ''));
+    const entryList = entries.length ? entries.map(x => `<li><span>${x.description}</span><span>${dateLabel(x.date)} · ${money(x.amount)}</span></li>`).join('') : '<li class="bar-detail-empty">No spending entries</li>';
+    const edgeClass = index === 0 ? 'bar-edge-start' : index === 6 ? 'bar-edge-end' : '';
+    return `<div class="bar ${index === 5 ? 'current' : ''} ${edgeClass}" tabindex="0" aria-label="${days[index]} spending details" data-value="${money(value)}" style="height:${Math.max(5, (value / max) * 100)}%"><div class="bar-detail"><strong>${days[index]} · ${money(value)}</strong><ul>${entryList}</ul></div></div>`;
+  }).join('');
   const spend = weekly.reduce((a, b) => a + b, 0); $('#averageSpend').textContent = shortMoney(spend / Math.max(daysInMonth, 1));
 }
 
