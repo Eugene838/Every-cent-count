@@ -147,9 +147,8 @@
         <label>Note<textarea name="note" maxlength="120" rows="3" placeholder="e.g. Dinner with family"></textarea></label>
         <div class="form-row"><label>Amount<input name="amount" type="number" min="0.01" step="0.01" required placeholder="0.00" /></label><label>Category<select name="category" id="categoryInput"></select></label></div>
         <label>Date<input name="date" id="dateInput" type="date" required /></label>
-        <label>Repeat<select name="recurrence" id="recurrenceInput"><option value="once">Does not repeat</option><option value="daily">Daily</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option><option value="custom">Custom cycle</option></select></label>
+        <label>Repeat<select name="recurrence" id="recurrenceInput"><option value="once">Does not repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select></label>
         <label id="recurrenceEndField" hidden>Ends on <span class="optional-label">(optional)</span><input name="recurrenceEnd" type="date" /></label>
-        <div class="custom-cycle" id="customCycleFields" hidden><div class="form-row"><label>Cycle starts<input name="cycleStart" type="date" /></label><label>Cycle ends<input name="cycleEnd" type="date" /></label></div><p class="form-note">For example, 20 Sep to 18 Oct repeats every 28 days. The transaction is recorded on each cycle start.</p></div>
         <section class="recurring-manager" id="recurringManager" hidden>
           <div><strong>Recurring transactions</strong><p>Remove selected transactions from this series without changing the others.</p></div>
           <button type="button" id="manageRecurringTransactions">Select transactions to delete</button>

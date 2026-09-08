@@ -53,17 +53,17 @@ const icon = (category) => { const item = categoryInfo[category] || categoryInfo
 const transactionFromRow = (row) => ({ id: row.id, description: row.description, note: row.note || '', category: row.category, amount: Number(row.amount), type: row.type, date: row.transaction_date, createdAt: row.created_at, recurrenceGroupId: row.recurrence_group_id || null, paymentNumber: row.recurrence_index || null, paymentCount: row.recurrence_count || null, recurring: false });
 const recurringFromRow = (row) => ({ id: row.id, description: row.description, note: row.note || '', category: row.category, amount: Number(row.amount), type: row.type, recurrence: row.recurrence, startDate: row.start_date, endDate: row.end_date, cycleEndDate: row.cycle_end_date, createdAt: row.created_at });
 const addMonths = (date, count) => { const next = new Date(date.getFullYear(), date.getMonth() + count, 1); next.setDate(Math.min(date.getDate(), new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate())); return next; };
-const recurrenceLabel = (entry) => entry.recurrence === 'custom' ? `Custom · ${dateLabel(entry.startDate)}–${dateLabel(entry.cycleEndDate)}` : entry.recurrence[0].toUpperCase() + entry.recurrence.slice(1);
-function occurrenceDates(recurrence, startKey, endKey, cycleEndKey) {
+const recurrenceLabel = (entry) => entry.recurrence[0].toUpperCase() + entry.recurrence.slice(1);
+function occurrenceDates(recurrence, startKey, endKey) {
   const start = new Date(`${startKey}T00:00:00`); const end = new Date(`${endKey}T00:00:00`); const dates = [];
-  const customDays = cycleEndKey ? Math.max(1, Math.round((new Date(`${cycleEndKey}T00:00:00`) - start) / 86400000)) : 1;
   for (let index = 0; index < 1000; index += 1) {
     let date;
     if (recurrence === 'daily') date = plusDays(start, index);
+    else if (recurrence === 'weekly') date = plusDays(start, index * 7);
     else if (recurrence === 'monthly') date = addMonths(start, index);
     else if (recurrence === 'quarterly') date = addMonths(start, index * 3);
     else if (recurrence === 'yearly') date = addMonths(start, index * 12);
-    else date = plusDays(start, index * customDays);
+    else date = plusDays(start, index * 7);
     if (date > end) break;
     dates.push(dateKey(date));
   }
@@ -75,12 +75,13 @@ function inferPaymentSchedule(payments) {
   const end = new Date(`${payments.at(-1).date}T00:00:00`);
   const gapDays = payments.length > 1 ? Math.round((new Date(`${payments[1].date}T00:00:00`) - start) / 86400000) : 1;
   const monthGap = payments.length > 1 ? ((new Date(`${payments[1].date}T00:00:00`).getFullYear() - start.getFullYear()) * 12) + new Date(`${payments[1].date}T00:00:00`).getMonth() - start.getMonth() : 0;
-  let recurrence = 'custom';
+  let recurrence = 'weekly';
   if (gapDays === 1) recurrence = 'daily';
+  else if (gapDays === 7) recurrence = 'weekly';
   else if (start.getDate() === new Date(`${payments[1]?.date || payments[0].date}T00:00:00`).getDate() && monthGap === 1) recurrence = 'monthly';
   else if (start.getDate() === new Date(`${payments[1]?.date || payments[0].date}T00:00:00`).getDate() && monthGap === 3) recurrence = 'quarterly';
   else if (start.getDate() === new Date(`${payments[1]?.date || payments[0].date}T00:00:00`).getDate() && monthGap === 12) recurrence = 'yearly';
-  return { recurrence, start: dateKey(start), end: dateKey(end), cycleEnd: dateKey(plusDays(start, gapDays)) };
+  return { recurrence, start: dateKey(start), end: dateKey(end) };
 }
 function scheduledTransactions() {
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -95,10 +96,12 @@ function scheduledTransactions() {
     while (date <= lastOccurrence && safety++ < 1000) {
       if (date >= earliest) occurrences.push({ ...template, id: `recurring:${template.id}:${dateKey(date)}`, date: dateKey(date), recurring: true, recurringId: template.id, createdAt: template.createdAt });
       if (template.recurrence === 'daily') date = plusDays(date, 1);
+      else if (template.recurrence === 'weekly') date = plusDays(date, 7);
       else if (template.recurrence === 'monthly') date = addMonths(date, 1);
       else if (template.recurrence === 'quarterly') date = addMonths(date, 3);
       else if (template.recurrence === 'yearly') date = addMonths(date, 12);
       else {
+        // Retain compatibility with any old custom-cycle rows created before weekly repeats replaced them.
         const cycleDays = Math.round((new Date(`${template.cycleEndDate}T00:00:00`) - start) / 86400000);
         date = plusDays(date, Math.max(1, cycleDays));
       }
@@ -340,12 +343,8 @@ function updateCategoryOptions() { $('#categoryInput').innerHTML = (selectedType
 function setTransactionType(type) { selectedType = type; document.querySelectorAll('.type-choice').forEach(x => x.classList.toggle('active', x.dataset.type === type)); updateCategoryOptions(); }
 function updateRecurrenceFields() {
   const recurrence = $('#recurrenceInput').value;
-  const custom = recurrence === 'custom';
   const allowsEndDate = recurrence !== 'once';
   $('#recurrenceEndField').hidden = !allowsEndDate;
-  $('#customCycleFields').hidden = !custom;
-  $('#transactionForm').elements.cycleStart.required = custom;
-  $('#transactionForm').elements.cycleEnd.required = custom;
 }
 function openTransactionModal(transaction = null) {
   editingTransactionId = transaction?.recurring ? null : transaction?.id || null;
@@ -364,9 +363,7 @@ function openTransactionModal(transaction = null) {
     const schedule = editingPaymentGroupId ? inferPaymentSchedule(paymentGroup(editingPaymentGroupId)) : null;
     if (schedule) editingTransactionId = null;
     form.elements.date.value = transaction.recurring ? transaction.startDate : schedule?.start || transaction.date;
-    form.elements.recurrence.value = transaction.recurring ? transaction.recurrence : schedule?.recurrence || 'once';
-    form.elements.cycleStart.value = transaction.recurring ? transaction.startDate : schedule?.start || '';
-    form.elements.cycleEnd.value = transaction.recurring?.cycleEndDate || schedule?.cycleEnd || '';
+    form.elements.recurrence.value = transaction.recurring && transaction.recurrence === 'custom' ? 'weekly' : transaction.recurring ? transaction.recurrence : schedule?.recurrence || 'once';
     form.elements.recurrenceEnd.value = transaction.recurring?.endDate || schedule?.end || '';
   } else {
     $('#transactionModalKicker').textContent = 'NEW ENTRY';
@@ -396,19 +393,16 @@ $('#manageRecurringTransactions').addEventListener('click', () => {
 $('#transactionForm').addEventListener('submit', async (event) => {
   event.preventDefault(); const form = new FormData(event.target);
   const recurrence = form.get('recurrence');
-  const startDate = recurrence === 'custom' ? form.get('cycleStart') : form.get('date');
-  if (recurrence === 'custom' && form.get('cycleEnd') <= form.get('cycleStart')) {
-    window.alert('The custom cycle end date must be after its start date.'); return;
-  }
+  const startDate = form.get('date');
   if (recurrence !== 'once' && form.get('recurrenceEnd') && form.get('recurrenceEnd') < startDate) {
     window.alert('The repeat end date must be on or after the start date.'); return;
   }
   const transactionValues = { description: form.get('description').trim(), note: form.get('note').trim() || null, category: form.get('category'), amount: Number(form.get('amount')), type: selectedType, transaction_date: form.get('date') };
-  const recurringValues = { description: form.get('description').trim(), note: form.get('note').trim() || null, category: form.get('category'), amount: Number(form.get('amount')), type: selectedType, recurrence, start_date: startDate, end_date: form.get('recurrenceEnd') || null, cycle_end_date: recurrence === 'custom' ? form.get('cycleEnd') : null, updated_at: new Date().toISOString() };
+  const recurringValues = { description: form.get('description').trim(), note: form.get('note').trim() || null, category: form.get('category'), amount: Number(form.get('amount')), type: selectedType, recurrence, start_date: startDate, end_date: form.get('recurrenceEnd') || null, cycle_end_date: null, updated_at: new Date().toISOString() };
   const finiteSchedule = recurrence !== 'once' && Boolean(form.get('recurrenceEnd'));
   let result;
   if (finiteSchedule) {
-    const dates = occurrenceDates(recurrence, startDate, form.get('recurrenceEnd'), recurrence === 'custom' ? form.get('cycleEnd') : null);
+    const dates = occurrenceDates(recurrence, startDate, form.get('recurrenceEnd'));
     if (!dates.length) { window.alert('No transaction dates fall within this schedule.'); return; }
     if (editingRecurringId) {
       const removal = await db.from('recurring_transactions').delete().eq('id', editingRecurringId);
