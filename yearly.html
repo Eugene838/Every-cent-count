@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=16" />
+    <link rel="stylesheet" href="styles.css?v=17" />
   </head>
   <body>
     <div class="shell">
@@ -20,7 +20,7 @@
           <a class="active" href="yearly.html?v=2"><span>◫</span>Yearly</a>
         </nav>
         <div class="sidebar-bottom">
-          <div class="profile profile-loading" id="profileArea"><div class="profile-menu" id="profileMenu" hidden><a href="profile.html?v=13"><span>◉</span>Profile</a></div><button class="profile-trigger" id="profileMenuTrigger" type="button" aria-expanded="false" aria-controls="profileMenu" aria-label="Open profile menu"><div class="avatar" id="profileAvatar"></div><div><strong id="profileName"></strong><small id="profileEmail"></small></div></button><a class="signout-button" href="signin.html?signout=1">Sign out</a></div>
+          <div class="profile profile-loading" id="profileArea"><div class="profile-menu" id="profileMenu" hidden><a href="profile.html?v=14"><span>◉</span>Profile</a></div><button class="profile-trigger" id="profileMenuTrigger" type="button" aria-expanded="false" aria-controls="profileMenu" aria-label="Open profile menu"><div class="avatar" id="profileAvatar"></div><div><strong id="profileName"></strong><small id="profileEmail"></small></div></button><a class="signout-button" href="signin.html?signout=1">Sign out</a></div>
           <script>
             (() => { try { const profile = JSON.parse(sessionStorage.getItem('everyCentProfilePreview')); if (!profile) return; document.getElementById('profileName').textContent = profile.name; document.getElementById('profileEmail').textContent = profile.email; document.getElementById('profileAvatar').textContent = profile.initials; document.getElementById('profileArea').classList.remove('profile-loading'); } catch {} })();
           </script>
