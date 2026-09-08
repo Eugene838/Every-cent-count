@@ -111,12 +111,17 @@
           </section>
 
           <section class="panel transactions-panel" id="transactions">
-            <div class="panel-heading"><div><p class="section-kicker">LEDGER</p><h2>Recent transactions</h2></div><button class="text-button" id="viewAll">View all <span>→</span></button></div>
+            <div class="panel-heading"><div><p class="section-kicker">LEDGER</p><h2>Recent transactions</h2></div></div>
             <div class="transaction-table">
               <div class="table-head"><span>TRANSACTION</span><span>CATEGORY</span><span>DATE</span><span>AMOUNT</span></div>
               <div id="transactionList"></div>
             </div>
-            <div class="empty-state" id="emptyState" hidden>No transactions for this month yet.</div>
+            <div class="empty-state" id="emptyState" hidden>No transactions yet.</div>
+            <nav class="pagination" id="transactionPagination" aria-label="Transaction pages" hidden>
+              <button class="pagination-button" id="previousTransactionPage" type="button">← Previous</button>
+              <span class="pagination-status" id="transactionPageStatus"></span>
+              <button class="pagination-button" id="nextTransactionPage" type="button">Next →</button>
+            </nav>
           </section>
         </section>
       </main>
@@ -163,6 +168,6 @@
     </dialog>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js?v=2"></script>
-    <script src="app.js?v=4"></script>
+    <script src="app.js?v=5"></script>
   </body>
 </html>

@@ -14,6 +14,8 @@ currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
 let selectedType = 'expense';
 let authMode = 'signin';
 let user = null;
+let transactionPage = 1;
+const transactionsPerPage = 5;
 
 const $ = (selector) => document.querySelector(selector);
 const money = (amount) => new Intl.NumberFormat('en-SG', { style: 'currency', currency: 'SGD', minimumFractionDigits: 2 }).format(amount);
@@ -23,7 +25,7 @@ const dateLabel = (date) => new Intl.DateTimeFormat('en-SG', { month: 'short', d
 const getMonthTransactions = () => data.transactions.filter((entry) => entry.date.startsWith(monthKey(currentDate)));
 const currentBalance = () => data.transactions.reduce((total, entry) => total + (entry.type === 'income' ? entry.amount : -entry.amount), 0) + data.balanceAdjustments.reduce((total, entry) => total + entry.amount, 0);
 const icon = (category) => { const item = categoryInfo[category] || categoryInfo.Other; return `<span class="category-icon" style="background:${item.color}">${item.icon}</span>`; };
-const transactionFromRow = (row) => ({ id: row.id, description: row.description, category: row.category, amount: Number(row.amount), type: row.type, date: row.transaction_date });
+const transactionFromRow = (row) => ({ id: row.id, description: row.description, category: row.category, amount: Number(row.amount), type: row.type, date: row.transaction_date, createdAt: row.created_at });
 const adjustmentFromRow = (row) => ({ id: row.id, amount: Number(row.amount), previousBalance: Number(row.previous_balance), newBalance: Number(row.new_balance), note: row.note, date: row.adjustment_date, createdAt: row.created_at });
 
 function operationError(error) {
@@ -70,7 +72,7 @@ function render() {
   $('#editBudget').textContent = data.budget ? 'Edit budget' : 'Set budget';
   $('#budgetProgress').style.width = `${usedCapped}%`;
   $('#budgetDonut').style.background = `conic-gradient(${spending > data.budget ? '#c26e68' : 'var(--green)'} 0deg ${usedCapped * 3.6}deg, #e5eee8 ${usedCapped * 3.6}deg 360deg)`;
-  renderCategories(transactions); renderTransactions(transactions); renderChart(transactions); renderInsight(spending, income, used); renderBalanceHistory();
+  renderCategories(transactions); renderTransactions(data.transactions); renderChart(transactions); renderInsight(spending, income, used); renderBalanceHistory();
 }
 
 function renderCategories(transactions) {
@@ -82,9 +84,17 @@ function renderCategories(transactions) {
 
 function renderTransactions(transactions) {
   const list = $('#transactionList');
-  const recent = [...transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
+  const newestFirst = [...transactions].sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const totalPages = Math.max(1, Math.ceil(newestFirst.length / transactionsPerPage));
+  transactionPage = Math.min(transactionPage, totalPages);
+  const pageStart = (transactionPage - 1) * transactionsPerPage;
+  const recent = newestFirst.slice(pageStart, pageStart + transactionsPerPage);
   list.innerHTML = recent.map(x => `<div class="transaction-row"><div class="transaction-name">${icon(x.category)}<span>${x.description}</span></div><span class="transaction-category">${x.category}</span><span class="transaction-date">${dateLabel(x.date)}</span><span class="transaction-amount ${x.type}">${x.type === 'income' ? '+' : '−'}${money(x.amount)} <button class="delete-transaction" data-id="${x.id}" aria-label="Delete ${x.description}">×</button></span></div>`).join('');
   $('#emptyState').hidden = Boolean(recent.length);
+  $('#transactionPagination').hidden = newestFirst.length <= transactionsPerPage;
+  $('#transactionPageStatus').textContent = `Page ${transactionPage} of ${totalPages}`;
+  $('#previousTransactionPage').disabled = transactionPage === 1;
+  $('#nextTransactionPage').disabled = transactionPage === totalPages;
   list.querySelectorAll('.delete-transaction').forEach(button => button.addEventListener('click', async () => {
     const { error } = await db.from('transactions').delete().eq('id', button.dataset.id);
     if (error) { operationError(error); return; }
@@ -124,7 +134,7 @@ $('#transactionForm').addEventListener('submit', async (event) => {
   event.preventDefault(); const form = new FormData(event.target);
   const { data: row, error } = await db.from('transactions').insert({ user_id: user.id, description: form.get('description').trim(), category: form.get('category'), amount: Number(form.get('amount')), type: selectedType, transaction_date: form.get('date') }).select().single();
   if (error) { operationError(error); return; }
-  data.transactions.push(transactionFromRow(row)); event.target.reset(); $('#transactionModal').close(); render();
+  data.transactions.push(transactionFromRow(row)); transactionPage = 1; event.target.reset(); $('#transactionModal').close(); render();
 });
 document.querySelectorAll('.type-choice').forEach(button => button.addEventListener('click', () => { selectedType = button.dataset.type; document.querySelectorAll('.type-choice').forEach(x => x.classList.toggle('active', x === button)); updateCategoryOptions(); }));
 $('#editBudget').addEventListener('click', openBudget); $('#budgetButton').addEventListener('click', openBudget);
@@ -145,7 +155,8 @@ document.querySelectorAll('[data-close]').forEach(button => button.addEventListe
 $('#previousMonth').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); render(); });
 $('#nextMonth').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); render(); });
 $('#menuButton').addEventListener('click', () => $('.sidebar').classList.toggle('open'));
-$('#viewAll').addEventListener('click', () => document.querySelector('#transactions').scrollIntoView({ behavior: 'smooth' }));
+$('#previousTransactionPage').addEventListener('click', () => { transactionPage -= 1; render(); });
+$('#nextTransactionPage').addEventListener('click', () => { transactionPage += 1; render(); });
 
 function setAuthMode(mode) {
   authMode = mode;
