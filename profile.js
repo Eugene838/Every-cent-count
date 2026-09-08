@@ -52,7 +52,8 @@ $('#usernameForm').addEventListener('submit', async (event) => {
 
 $('#passwordForm').addEventListener('submit', async (event) => {
   event.preventDefault();
-  const form = new FormData(event.currentTarget);
+  const formElement = event.currentTarget;
+  const form = new FormData(formElement);
   const currentPassword = form.get('currentPassword');
   const newPassword = form.get('newPassword');
   const confirmPassword = form.get('confirmPassword');
@@ -72,7 +73,7 @@ $('#passwordForm').addEventListener('submit', async (event) => {
     if (successShown) return;
     successShown = true;
     $('#savePassword').disabled = false;
-    event.currentTarget.reset();
+    formElement.reset();
     showMessage('#passwordMessage', 'Password updated successfully.', true);
   };
   const visualSuccessTimeout = window.setTimeout(showPasswordSuccess, 750);
