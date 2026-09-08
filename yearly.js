@@ -1,4 +1,9 @@
 const db = window.supabaseClient;
+const cleanPageUrl = new URL(window.location.href);
+if (cleanPageUrl.searchParams.has('v')) {
+  cleanPageUrl.searchParams.delete('v');
+  window.history.replaceState({}, '', `${cleanPageUrl.pathname}${cleanPageUrl.search}${cleanPageUrl.hash}`);
+}
 
 let data = { budget: 0, transactions: [], balanceAdjustments: [] };
 let selectedYear = new Date().getFullYear();

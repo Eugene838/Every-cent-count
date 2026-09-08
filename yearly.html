@@ -14,13 +14,13 @@
   <body>
     <div class="shell">
       <aside class="sidebar">
-        <a class="brand" href="index.html?v=2" aria-label="Every Cent Counts home"><span class="brand-mark">$</span><span>Every Cent Counts</span></a>
+        <a class="brand" href="index.html" aria-label="Every Cent Counts home"><span class="brand-mark">$</span><span>Every Cent Counts</span></a>
         <nav class="nav" aria-label="Main navigation">
-          <a href="index.html?v=2"><span>▦</span>Monthly</a>
-          <a class="active" href="yearly.html?v=2"><span>◫</span>Yearly</a>
+          <a href="index.html"><span>▦</span>Monthly</a>
+          <a class="active" href="yearly.html"><span>◫</span>Yearly</a>
         </nav>
         <div class="sidebar-bottom">
-          <div class="profile profile-loading" id="profileArea"><div class="profile-menu" id="profileMenu" hidden><a href="profile.html?v=15"><span>◉</span>Profile</a></div><button class="profile-trigger" id="profileMenuTrigger" type="button" aria-expanded="false" aria-controls="profileMenu" aria-label="Open profile menu"><div class="avatar" id="profileAvatar"></div><div><strong id="profileName"></strong><small id="profileEmail"></small></div></button><a class="signout-button" href="signin.html?signout=1">Sign out</a></div>
+          <div class="profile profile-loading" id="profileArea"><div class="profile-menu" id="profileMenu" hidden><a href="profile.html"><span>◉</span>Profile</a></div><button class="profile-trigger" id="profileMenuTrigger" type="button" aria-expanded="false" aria-controls="profileMenu" aria-label="Open profile menu"><div class="avatar" id="profileAvatar"></div><div><strong id="profileName"></strong><small id="profileEmail"></small></div></button><a class="signout-button" href="signin.html?signout=1">Sign out</a></div>
           <script>
             (() => { try { const profile = JSON.parse(sessionStorage.getItem('everyCentProfilePreview')); if (!profile) return; document.getElementById('profileName').textContent = profile.name; document.getElementById('profileEmail').textContent = profile.email; document.getElementById('profileAvatar').textContent = profile.initials; document.getElementById('profileArea').classList.remove('profile-loading'); } catch {} })();
           </script>
@@ -52,6 +52,6 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js?v=2"></script>
-    <script src="yearly.js?v=7"></script>
+    <script src="yearly.js?v=8"></script>
   </body>
 </html>

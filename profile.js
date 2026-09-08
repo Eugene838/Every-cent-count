@@ -1,4 +1,9 @@
 const db = window.supabaseClient;
+const cleanPageUrl = new URL(window.location.href);
+if (cleanPageUrl.searchParams.has('v')) {
+  cleanPageUrl.searchParams.delete('v');
+  window.history.replaceState({}, '', `${cleanPageUrl.pathname}${cleanPageUrl.search}${cleanPageUrl.hash}`);
+}
 const $ = (selector) => document.querySelector(selector);
 let currentUser = null;
 const messageTimers = new Map();

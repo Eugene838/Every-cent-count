@@ -1,4 +1,9 @@
 const db = window.supabaseClient;
+const cleanPageUrl = new URL(window.location.href);
+if (cleanPageUrl.searchParams.has('v')) {
+  cleanPageUrl.searchParams.delete('v');
+  window.history.replaceState({}, '', `${cleanPageUrl.pathname}${cleanPageUrl.search}${cleanPageUrl.hash}`);
+}
 
 const categoryInfo = {
   Food: { icon: '🍔', color: '#f7e4cb' }, Transport: { icon: '🚌', color: '#dcebee' }, Shopping: { icon: '🛒', color: '#eee3f1' },
