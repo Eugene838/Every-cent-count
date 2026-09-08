@@ -1,9 +1,9 @@
 const db = window.supabaseClient;
 
 const categoryInfo = {
-  Food: { icon: '⌑', color: '#f7e4cb' }, Transport: { icon: '↝', color: '#dcebee' }, Shopping: { icon: '♢', color: '#eee3f1' },
-  Home: { icon: '⌂', color: '#dcebdc' }, Entertainment: { icon: '◉', color: '#f3dde0' }, Health: { icon: '✚', color: '#f4ebc8' },
-  Salary: { icon: '↙', color: '#dcebdc' }, Freelance: { icon: '✧', color: '#dcebee' }, Capital: { icon: '◈', color: '#f4ebc8' }, Other: { icon: '•', color: '#e8e9e4' }
+  Food: { icon: '🍔', color: '#f7e4cb' }, Transport: { icon: '🚌', color: '#dcebee' }, Shopping: { icon: '🛒', color: '#eee3f1' },
+  Home: { icon: '🏠', color: '#dcebdc' }, Entertainment: { icon: '🎬', color: '#f3dde0' }, Health: { icon: '💊', color: '#f4ebc8' },
+  Salary: { icon: '💼', color: '#dcebdc' }, Freelance: { icon: '💻', color: '#dcebee' }, Capital: { icon: '📈', color: '#f4ebc8' }, Other: { icon: '✦', color: '#e8e9e4' }
 };
 const expenseCategories = ['Food', 'Transport', 'Shopping', 'Home', 'Entertainment', 'Health', 'Other'];
 const incomeCategories = ['Salary', 'Freelance', 'Capital', 'Other'];
