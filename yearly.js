@@ -8,6 +8,15 @@ const money = (amount) => new Intl.NumberFormat('en-SG', { style: 'currency', cu
 const dateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const transactionFromRow = (row) => ({ amount: Number(row.amount), type: row.type, date: row.transaction_date });
 const adjustmentFromRow = (row) => ({ amount: Number(row.amount), date: row.adjustment_date });
+const displayNameFor = (account) => account?.user_metadata?.username?.trim() || account?.email?.split('@')[0] || 'My profile';
+
+function renderProfile(account) {
+  const name = displayNameFor(account);
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase() || 'EC';
+  $('#profileName').textContent = name;
+  $('#profileEmail').textContent = account.email || 'Personal account';
+  $('#profileAvatar').textContent = initials;
+}
 
 function getWeeklySpending(monthIndex, entries) {
   const daysInMonth = new Date(selectedYear, monthIndex + 1, 0).getDate();
@@ -80,6 +89,7 @@ async function initialize() {
     window.location.replace('signin.html');
     return;
   }
+  renderProfile(user);
   await loadData();
 }
 

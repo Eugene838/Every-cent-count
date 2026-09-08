@@ -44,6 +44,15 @@ const currentBalance = () => data.transactions.reduce((total, entry) => total + 
 const icon = (category) => { const item = categoryInfo[category] || categoryInfo.Other; return `<span class="category-icon" style="background:${item.color}">${item.icon}</span>`; };
 const transactionFromRow = (row) => ({ id: row.id, description: row.description, note: row.note || '', category: row.category, amount: Number(row.amount), type: row.type, date: row.transaction_date, createdAt: row.created_at });
 const adjustmentFromRow = (row) => ({ id: row.id, amount: Number(row.amount), previousBalance: Number(row.previous_balance), newBalance: Number(row.new_balance), note: row.note, date: row.adjustment_date, createdAt: row.created_at });
+const displayNameFor = (account) => account?.user_metadata?.username?.trim() || account?.email?.split('@')[0] || 'My profile';
+
+function renderProfile(account) {
+  const name = displayNameFor(account);
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase() || 'EC';
+  $('#profileName').textContent = name;
+  $('#profileEmail').textContent = account.email || 'Personal account';
+  $('#profileAvatar').textContent = initials;
+}
 
 const isFutureJwtError = (error) => /jwt issued at future/i.test(error?.message || '');
 
@@ -347,8 +356,8 @@ async function initialize() {
     window.location.replace('signin.html');
     return;
   }
-  user = verifiedUser; await loadData();
+  user = verifiedUser; renderProfile(user); await loadData();
 }
 
-db.auth.onAuthStateChange((_event, session) => { if (session && !user) { user = session.user; $('#authModal').close(); loadData(); } });
+db.auth.onAuthStateChange((_event, session) => { if (session && !user) { user = session.user; renderProfile(user); $('#authModal').close(); loadData(); } });
 initialize();

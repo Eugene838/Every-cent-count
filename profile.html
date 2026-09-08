@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#10231d" />
+    <link rel="icon" href="favicon.svg?v=1" type="image/svg+xml" />
+    <title>Profile — Every Cent Counts</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=13" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <a class="brand" href="index.html" aria-label="Every Cent Counts home"><span class="brand-mark">$</span><span>Every Cent Counts</span></a>
+        <nav class="nav" aria-label="Main navigation">
+          <a href="index.html"><span>▦</span>Monthly</a>
+          <a href="yearly.html"><span>◫</span>Yearly</a>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="profile">
+            <a class="profile-link" href="profile.html" aria-current="page" aria-label="Open profile">
+              <div class="avatar" id="profileAvatar">EC</div>
+              <div><strong id="profileName">My profile</strong><small id="profileEmail">Personal account</small></div>
+            </a>
+            <a class="signout-button" href="signin.html?signout=1">Sign out</a>
+          </div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="topbar"><button class="mobile-menu" id="menuButton" aria-label="Open navigation">☰</button></header>
+        <section class="content profile-page">
+          <div class="intro"><div><p class="eyebrow">ACCOUNT SETTINGS</p><h1>Your profile,<br /><em>your details.</em></h1></div><p class="profile-page-copy">Update the name shown in your tracker or choose a new password for your account.</p></div>
+
+          <div class="profile-grid">
+            <article class="profile-card profile-summary">
+              <div class="avatar" id="summaryAvatar">EC</div>
+              <div><strong id="summaryName">My profile</strong><small id="summaryEmail">Personal account</small></div>
+            </article>
+
+            <article class="profile-card">
+              <h2>Profile details</h2>
+              <p>Your username is displayed in the lower-left account area.</p>
+              <form class="profile-form" id="usernameForm">
+                <label>Username <input id="usernameInput" name="username" maxlength="40" autocomplete="nickname" required /></label>
+                <button class="submit-transaction" type="submit" id="saveUsername">Save username</button>
+                <p class="profile-message" id="usernameMessage" role="status"></p>
+              </form>
+            </article>
+
+            <article class="profile-card">
+              <h2>Change password</h2>
+              <p>Confirm your current password before setting a new one.</p>
+              <form class="profile-form" id="passwordForm">
+                <label>Current password <input name="currentPassword" type="password" autocomplete="current-password" required /></label>
+                <label>New password <input name="newPassword" type="password" autocomplete="new-password" minlength="6" required /></label>
+                <label>Confirm new password <input name="confirmPassword" type="password" autocomplete="new-password" minlength="6" required /></label>
+                <button class="submit-transaction" type="submit" id="savePassword">Update password</button>
+                <p class="profile-message" id="passwordMessage" role="status"></p>
+                <p class="profile-hint">Use at least 6 characters. You will stay signed in after a successful update.</p>
+              </form>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="profile.js"></script>
+  </body>
+</html>
