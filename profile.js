@@ -63,8 +63,8 @@ $('#passwordForm').addEventListener('submit', async (event) => {
   const verification = await db.auth.signInWithPassword({ email: currentUser.email, password: currentPassword });
   if (verification.error) { $('#savePassword').disabled = false; showMessage('#passwordMessage', 'Your current password is incorrect.'); return; }
   showMessage('#passwordMessage', 'Updating password…');
-  const { data: { session }, error: sessionError } = await db.auth.getSession();
-  if (sessionError || !session?.access_token) { $('#savePassword').disabled = false; showMessage('#passwordMessage', 'Your session has expired. Please sign in again.'); return; }
+  const accessToken = verification.data?.session?.access_token;
+  if (!accessToken) { $('#savePassword').disabled = false; showMessage('#passwordMessage', 'Your session has expired. Please sign in again.'); return; }
   const controller = new AbortController();
   const requestTimeout = window.setTimeout(() => controller.abort(), 8000);
   let response;
@@ -72,7 +72,7 @@ $('#passwordForm').addEventListener('submit', async (event) => {
   try {
     response = await fetch(`${supabaseUrl}/auth/v1/user`, {
       method: 'PUT',
-      headers: { apikey: supabasePublishableKey, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+      headers: { apikey: supabasePublishableKey, Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ password: newPassword }),
       signal: controller.signal
     });
