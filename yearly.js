@@ -78,7 +78,7 @@ function renderYear() {
     const label = new Intl.DateTimeFormat('en-SG', { month: 'long' }).format(new Date(selectedYear, month.index, 1));
     const budgetStatus = data.budget ? `${Math.round((month.spending / data.budget) * 100)}% used` : 'No budget';
     const monthKey = `${selectedYear}-${String(month.index + 1).padStart(2, '0')}`;
-    const weeklyDetails = month.weeklySpending.map((week, index) => `<li><a class="yearly-week-link" href="index.html?month=${monthKey}&week=${week.weekStart}#insights">Week ${index + 1} (${week.firstDay}–${week.lastDay})</a><span>${money(week.total)}</span></li>`).join('');
+    const weeklyDetails = month.weeklySpending.map((week, index) => `<li><a class="yearly-week-link" href="/home?month=${monthKey}&week=${week.weekStart}#insights">Week ${index + 1} (${week.firstDay}–${week.lastDay})</a><span>${money(week.total)}</span></li>`).join('');
     return `<div class="yearly-row" tabindex="0"><span class="month-name">${label}<span class="yearly-week-detail" role="tooltip"><strong>${label} weekly spending</strong><ul>${weeklyDetails}</ul></span></span><span class="amount income-cell">${money(month.income)}</span><span class="amount spending-cell">${money(month.spending)}</span><span class="amount net-cell ${month.net >= 0 ? 'positive' : 'negative'}">${month.net >= 0 ? '+' : '−'}${money(Math.abs(month.net))}</span><span class="budget-status ${data.budget && month.spending > data.budget ? 'over' : ''}">${budgetStatus}</span></div>`;
   }).join('');
 }

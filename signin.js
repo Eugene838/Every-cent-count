@@ -39,7 +39,7 @@ $('#authForm').addEventListener('submit', async (event) => {
     const result = authMode === 'signup' ? await db.auth.signUp({ email, password }) : await db.auth.signInWithPassword({ email, password });
     if (authMode === 'signup' && isExistingAccount(result)) { showExistingAccountMessage(); return; }
     if (result.error) { $('#authMessage').textContent = result.error.message; return; }
-    if (result.data.session) { window.location.replace('index.html'); return; }
+    if (result.data.session) { window.location.replace('/home'); return; }
     $('#authMessage').textContent = 'Account created. Check your email to confirm it, then sign in.';
     $('#authMessage').classList.add('success');
   } catch (error) {
@@ -60,7 +60,7 @@ async function initialize() {
     await db.auth.signOut({ scope: 'local' });
     return;
   }
-  window.location.replace('index.html');
+  window.location.replace('/home');
 }
 
 initialize();
