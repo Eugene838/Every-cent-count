@@ -2,6 +2,7 @@ const db = window.supabaseClient;
 const $ = (selector) => document.querySelector(selector);
 let currentUser = null;
 const messageTimers = new Map();
+const wait = (milliseconds) => new Promise(resolve => window.setTimeout(resolve, milliseconds));
 
 const displayNameFor = (account) => account?.user_metadata?.username?.trim() || account?.email?.split('@')[0] || 'My profile';
 const initialsFor = (name) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase() || 'EC';
@@ -61,9 +62,25 @@ $('#passwordForm').addEventListener('submit', async (event) => {
   const verification = await db.auth.signInWithPassword({ email: currentUser.email, password: currentPassword });
   if (verification.error) { $('#savePassword').disabled = false; showMessage('#passwordMessage', 'Your current password is incorrect.'); return; }
   showMessage('#passwordMessage', 'Updating password…');
-  const { error } = await db.auth.updateUser({ password: newPassword });
+  const updateRequest = db.auth.updateUser({ password: newPassword })
+    .then(result => ({ ...result, timedOut: false }))
+    .catch(error => ({ error, timedOut: false }));
+  const updateResult = await Promise.race([
+    updateRequest,
+    wait(5000).then(() => ({ timedOut: true }))
+  ]);
   $('#savePassword').disabled = false;
-  if (error) { showMessage('#passwordMessage', error.message); return; }
+  if (updateResult.timedOut) {
+    let newPasswordVerified = null;
+    for (let attempt = 0; attempt < 3 && !newPasswordVerified; attempt += 1) {
+      newPasswordVerified = await db.auth.signInWithPassword({ email: currentUser.email, password: newPassword });
+      if (newPasswordVerified.error && attempt < 2) await wait(2000);
+    }
+    if (newPasswordVerified?.error) {
+      showMessage('#passwordMessage', 'Password update is taking longer than expected. Please wait a moment, then try signing in with your new password.');
+      return;
+    }
+  } else if (updateResult.error) { showMessage('#passwordMessage', updateResult.error.message); return; }
   event.currentTarget.reset();
   showMessage('#passwordMessage', 'Password updated successfully.', true);
 });
