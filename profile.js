@@ -36,6 +36,18 @@ function renderProfile(account) {
 }
 
 $('#menuButton').addEventListener('click', () => $('.sidebar').classList.toggle('open'));
+const profileMenuTrigger = $('#profileMenuTrigger');
+const profileMenu = $('#profileMenu');
+if (profileMenuTrigger && profileMenu) {
+  const closeProfileMenu = () => { profileMenu.hidden = true; profileMenuTrigger.setAttribute('aria-expanded', 'false'); };
+  profileMenuTrigger.addEventListener('click', () => {
+    const willOpen = profileMenu.hidden;
+    profileMenu.hidden = !willOpen;
+    profileMenuTrigger.setAttribute('aria-expanded', String(willOpen));
+  });
+  document.addEventListener('click', (event) => { if (!$('.profile').contains(event.target)) closeProfileMenu(); });
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeProfileMenu(); });
+}
 
 $('#usernameForm').addEventListener('submit', async (event) => {
   event.preventDefault();

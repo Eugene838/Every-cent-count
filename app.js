@@ -300,6 +300,18 @@ document.querySelectorAll('[data-close]').forEach(button => button.addEventListe
 $('#previousMonth').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); render(); });
 $('#nextMonth').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); render(); });
 $('#menuButton').addEventListener('click', () => $('.sidebar').classList.toggle('open'));
+const profileMenuTrigger = $('#profileMenuTrigger');
+const profileMenu = $('#profileMenu');
+if (profileMenuTrigger && profileMenu) {
+  const closeProfileMenu = () => { profileMenu.hidden = true; profileMenuTrigger.setAttribute('aria-expanded', 'false'); };
+  profileMenuTrigger.addEventListener('click', () => {
+    const willOpen = profileMenu.hidden;
+    profileMenu.hidden = !willOpen;
+    profileMenuTrigger.setAttribute('aria-expanded', String(willOpen));
+  });
+  document.addEventListener('click', (event) => { if (!$('.profile').contains(event.target)) closeProfileMenu(); });
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeProfileMenu(); });
+}
 $('#previousTransactionPage').addEventListener('click', () => { transactionPageAnimation = 'previous'; transactionPage -= 1; render(); });
 $('#nextTransactionPage').addEventListener('click', () => { transactionPageAnimation = 'next'; transactionPage += 1; render(); });
 $('#previousActivityWeek').addEventListener('click', () => { activityWeekStart = plusDays(activityWeekStart, -7); renderChart(data.transactions); });

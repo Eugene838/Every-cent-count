@@ -79,6 +79,18 @@ function renderYear() {
 $('#previousYear').addEventListener('click', () => { selectedYear -= 1; renderYear(); });
 $('#nextYear').addEventListener('click', () => { selectedYear += 1; renderYear(); });
 $('#menuButton').addEventListener('click', () => $('.sidebar').classList.toggle('open'));
+const profileMenuTrigger = $('#profileMenuTrigger');
+const profileMenu = $('#profileMenu');
+if (profileMenuTrigger && profileMenu) {
+  const closeProfileMenu = () => { profileMenu.hidden = true; profileMenuTrigger.setAttribute('aria-expanded', 'false'); };
+  profileMenuTrigger.addEventListener('click', () => {
+    const willOpen = profileMenu.hidden;
+    profileMenu.hidden = !willOpen;
+    profileMenuTrigger.setAttribute('aria-expanded', String(willOpen));
+  });
+  document.addEventListener('click', (event) => { if (!$('.profile').contains(event.target)) closeProfileMenu(); });
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeProfileMenu(); });
+}
 
 async function initialize() {
   const { data: { session } } = await db.auth.getSession();
