@@ -10,6 +10,13 @@ const incomeCategories = ['Salary', 'Freelance', 'Capital', 'Other'];
 const emptyData = () => ({ budget: 0, transactions: [], balanceAdjustments: [] });
 let data = emptyData();
 let currentDate = new Date();
+const dashboardParams = new URLSearchParams(window.location.search);
+const requestedMonth = dashboardParams.get('month');
+const requestedWeek = dashboardParams.get('week');
+if (/^\d{4}-\d{2}$/.test(requestedMonth || '')) {
+  const [year, month] = requestedMonth.split('-').map(Number);
+  currentDate = new Date(year, month - 1, 1);
+}
 currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
 let selectedType = 'expense';
 let authMode = 'signin';
@@ -19,7 +26,7 @@ let transactionPageAnimation = null;
 let editingTransactionId = null;
 let sessionRecoveryInProgress = false;
 let bulkEditMode = false;
-let activityWeekStart = startOfWeek(new Date());
+let activityWeekStart = /^\d{4}-\d{2}-\d{2}$/.test(requestedWeek || '') ? startOfWeek(new Date(`${requestedWeek}T00:00:00`)) : startOfWeek(new Date());
 const selectedTransactionIds = new Set();
 const transactionsPerPage = 5;
 
