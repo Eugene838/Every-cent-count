@@ -5,8 +5,30 @@ let selectedYear = new Date().getFullYear();
 
 const $ = (selector) => document.querySelector(selector);
 const money = (amount) => new Intl.NumberFormat('en-SG', { style: 'currency', currency: 'SGD', minimumFractionDigits: 2 }).format(amount);
+const dateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const transactionFromRow = (row) => ({ amount: Number(row.amount), type: row.type, date: row.transaction_date });
 const adjustmentFromRow = (row) => ({ amount: Number(row.amount), date: row.adjustment_date });
+
+function getWeeklySpending(monthIndex, entries) {
+  const daysInMonth = new Date(selectedYear, monthIndex + 1, 0).getDate();
+  const weeks = new Map();
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const date = new Date(selectedYear, monthIndex, day);
+    const weekStart = new Date(date);
+    weekStart.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+    const key = dateKey(weekStart);
+    if (!weeks.has(key)) weeks.set(key, { firstDay: day, lastDay: day, total: 0 });
+    else weeks.get(key).lastDay = day;
+  }
+  entries.filter(entry => entry.type === 'expense').forEach(entry => {
+    const date = new Date(`${entry.date}T00:00:00`);
+    const weekStart = new Date(date);
+    weekStart.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+    const week = weeks.get(dateKey(weekStart));
+    if (week) week.total += entry.amount;
+  });
+  return [...weeks.values()];
+}
 
 async function loadData() {
   const [transactionResult, budgetResult, adjustmentResult] = await Promise.all([
@@ -27,7 +49,7 @@ function renderYear() {
     const income = entries.filter(entry => entry.type === 'income').reduce((total, entry) => total + entry.amount, 0);
     const spending = entries.filter(entry => entry.type === 'expense').reduce((total, entry) => total + entry.amount, 0);
     const adjustments = data.balanceAdjustments.filter(entry => entry.date.startsWith(key)).reduce((total, entry) => total + entry.amount, 0);
-    return { index, income, spending, adjustments, net: income - spending + adjustments };
+    return { index, income, spending, adjustments, net: income - spending + adjustments, weeklySpending: getWeeklySpending(index, entries) };
   });
   const totalIncome = months.reduce((total, month) => total + month.income, 0);
   const totalSpending = months.reduce((total, month) => total + month.spending, 0);
@@ -39,7 +61,8 @@ function renderYear() {
   $('#yearlyRows').innerHTML = months.map(month => {
     const label = new Intl.DateTimeFormat('en-SG', { month: 'long' }).format(new Date(selectedYear, month.index, 1));
     const budgetStatus = data.budget ? `${Math.round((month.spending / data.budget) * 100)}% used` : 'No budget';
-    return `<div class="yearly-row"><span class="month-name">${label}</span><span class="amount income-cell">${money(month.income)}</span><span class="amount spending-cell">${money(month.spending)}</span><span class="amount net-cell ${month.net >= 0 ? 'positive' : 'negative'}">${month.net >= 0 ? '+' : '−'}${money(Math.abs(month.net))}</span><span class="budget-status ${data.budget && month.spending > data.budget ? 'over' : ''}">${budgetStatus}</span></div>`;
+    const weeklyDetails = month.weeklySpending.map((week, index) => `<li><span>Week ${index + 1} (${week.firstDay}–${week.lastDay})</span><span>${money(week.total)}</span></li>`).join('');
+    return `<div class="yearly-row" tabindex="0"><span class="month-name">${label}<span class="yearly-week-detail" role="tooltip"><strong>${label} weekly spending</strong><ul>${weeklyDetails}</ul></span></span><span class="amount income-cell">${money(month.income)}</span><span class="amount spending-cell">${money(month.spending)}</span><span class="amount net-cell ${month.net >= 0 ? 'positive' : 'negative'}">${month.net >= 0 ? '+' : '−'}${money(Math.abs(month.net))}</span><span class="budget-status ${data.budget && month.spending > data.budget ? 'over' : ''}">${budgetStatus}</span></div>`;
   }).join('');
 }
 
