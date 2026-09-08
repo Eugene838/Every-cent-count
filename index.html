@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=7" />
+    <link rel="stylesheet" href="styles.css?v=8" />
   </head>
   <body>
     <div class="shell">
@@ -118,7 +118,7 @@
               <button class="bulk-delete" id="bulkDeleteTransactions" type="button">Delete selected</button>
             </div>
             <div class="transaction-table">
-              <div class="table-head"><label class="transaction-selector"><input id="selectAllTransactions" type="checkbox" aria-label="Select all transactions on this page" /></label><span>TRANSACTION</span><span>CATEGORY</span><span>DATE</span><span>AMOUNT</span></div>
+              <div class="table-head"><label class="transaction-selector"><input id="selectAllTransactions" type="checkbox" aria-label="Select all transactions on this page" /></label><span>TRANSACTION</span><span>CATEGORY</span><span>NOTE</span><span>DATE</span><span>AMOUNT</span></div>
               <div id="transactionList"></div>
             </div>
             <div class="empty-state" id="emptyState" hidden>No transactions yet.</div>
@@ -138,6 +138,7 @@
         <div class="type-toggle"><button type="button" class="type-choice active" data-type="expense">Expense</button><button type="button" class="type-choice" data-type="income">Income</button></div>
         <label>Description<input name="description" list="transactionDescriptionSuggestions" autocomplete="off" required placeholder="e.g. Morning groceries" /></label>
         <datalist id="transactionDescriptionSuggestions"></datalist>
+        <label>Note<input name="note" maxlength="120" placeholder="e.g. Dinner with family" /></label>
         <div class="form-row"><label>Amount<input name="amount" type="number" min="0.01" step="0.01" required placeholder="0.00" /></label><label>Category<select name="category" id="categoryInput"></select></label></div>
         <label>Date<input name="date" id="dateInput" type="date" required /></label>
         <button class="submit-transaction" id="transactionSubmit" type="submit">Save transaction</button>
@@ -174,6 +175,6 @@
     </dialog>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js?v=2"></script>
-    <script src="app.js?v=11"></script>
+    <script src="app.js?v=12"></script>
   </body>
 </html>

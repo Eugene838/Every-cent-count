@@ -31,7 +31,7 @@ const dateLabel = (date) => new Intl.DateTimeFormat('en-SG', { month: 'short', d
 const getMonthTransactions = () => data.transactions.filter((entry) => entry.date.startsWith(monthKey(currentDate)));
 const currentBalance = () => data.transactions.reduce((total, entry) => total + (entry.type === 'income' ? entry.amount : -entry.amount), 0) + data.balanceAdjustments.reduce((total, entry) => total + entry.amount, 0);
 const icon = (category) => { const item = categoryInfo[category] || categoryInfo.Other; return `<span class="category-icon" style="background:${item.color}">${item.icon}</span>`; };
-const transactionFromRow = (row) => ({ id: row.id, description: row.description, category: row.category, amount: Number(row.amount), type: row.type, date: row.transaction_date, createdAt: row.created_at });
+const transactionFromRow = (row) => ({ id: row.id, description: row.description, note: row.note || '', category: row.category, amount: Number(row.amount), type: row.type, date: row.transaction_date, createdAt: row.created_at });
 const adjustmentFromRow = (row) => ({ id: row.id, amount: Number(row.amount), previousBalance: Number(row.previous_balance), newBalance: Number(row.new_balance), note: row.note, date: row.adjustment_date, createdAt: row.created_at });
 
 const isFutureJwtError = (error) => /jwt issued at future/i.test(error?.message || '');
@@ -148,7 +148,7 @@ function renderTransactions(transactions) {
   transactionPage = Math.min(transactionPage, totalPages);
   const pageStart = (transactionPage - 1) * transactionsPerPage;
   const recent = newestFirst.slice(pageStart, pageStart + transactionsPerPage);
-  list.innerHTML = recent.map(x => `<div class="transaction-row"><label class="transaction-selector"><input class="transaction-select" data-id="${x.id}" type="checkbox" aria-label="Select ${x.description}" ${selectedTransactionIds.has(x.id) ? 'checked' : ''} /></label><div class="transaction-name">${icon(x.category)}<span>${x.description}</span></div><span class="transaction-category">${x.category}</span><span class="transaction-date">${dateLabel(x.date)}</span><span class="transaction-amount ${x.type}">${x.type === 'income' ? '+' : '−'}${money(x.amount)} <button class="edit-transaction" data-id="${x.id}" aria-label="Edit ${x.description}">✎</button><button class="delete-transaction" data-id="${x.id}" aria-label="Delete ${x.description}">×</button></span></div>`).join('');
+  list.innerHTML = recent.map(x => `<div class="transaction-row"><label class="transaction-selector"><input class="transaction-select" data-id="${x.id}" type="checkbox" aria-label="Select ${x.description}" ${selectedTransactionIds.has(x.id) ? 'checked' : ''} /></label><div class="transaction-name">${icon(x.category)}<span>${x.description}</span></div><span class="transaction-category">${x.category}</span><span class="transaction-note" title="${x.note || ''}">${x.note || '—'}</span><span class="transaction-date">${dateLabel(x.date)}</span><span class="transaction-amount ${x.type}">${x.type === 'income' ? '+' : '−'}${money(x.amount)} <button class="edit-transaction" data-id="${x.id}" aria-label="Edit ${x.description}">✎</button><button class="delete-transaction" data-id="${x.id}" aria-label="Delete ${x.description}">×</button></span></div>`).join('');
   list.classList.toggle('has-transactions', Boolean(recent.length));
   list.classList.remove('page-enter-next', 'page-enter-previous');
   if (transactionPageAnimation) {
@@ -224,6 +224,7 @@ function openTransactionModal(transaction = null) {
     $('#transactionSubmit').textContent = 'Save changes';
     setTransactionType(transaction.type);
     form.elements.description.value = transaction.description;
+    form.elements.note.value = transaction.note;
     form.elements.amount.value = transaction.amount;
     form.elements.category.value = transaction.category;
     form.elements.date.value = transaction.date;
@@ -243,7 +244,7 @@ function openBalanceModal() { $('#balanceForm [name="balance"]').value = current
 $('#openTransactionModal').addEventListener('click', () => openTransactionModal());
 $('#transactionForm').addEventListener('submit', async (event) => {
   event.preventDefault(); const form = new FormData(event.target);
-  const transactionValues = { description: form.get('description').trim(), category: form.get('category'), amount: Number(form.get('amount')), type: selectedType, transaction_date: form.get('date') };
+  const transactionValues = { description: form.get('description').trim(), note: form.get('note').trim() || null, category: form.get('category'), amount: Number(form.get('amount')), type: selectedType, transaction_date: form.get('date') };
   const result = editingTransactionId
     ? await db.from('transactions').update(transactionValues).eq('id', editingTransactionId).select().single()
     : await db.from('transactions').insert({ user_id: user.id, ...transactionValues }).select().single();
