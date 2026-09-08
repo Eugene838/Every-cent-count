@@ -28,6 +28,7 @@ function renderProfile(account) {
   $('#profileName').textContent = name;
   $('#profileEmail').textContent = account.email || 'Personal account';
   $('#profileAvatar').textContent = initials;
+  $('#profileArea').classList.remove('profile-loading');
   $('#summaryName').textContent = name;
   $('#summaryEmail').textContent = account.email || 'Personal account';
   $('#summaryAvatar').textContent = initials;

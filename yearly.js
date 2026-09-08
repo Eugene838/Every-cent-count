@@ -16,6 +16,7 @@ function renderProfile(account) {
   $('#profileName').textContent = name;
   $('#profileEmail').textContent = account.email || 'Personal account';
   $('#profileAvatar').textContent = initials;
+  $('#profileArea').classList.remove('profile-loading');
 }
 
 function getWeeklySpending(monthIndex, entries) {
