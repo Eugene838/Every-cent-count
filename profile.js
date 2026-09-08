@@ -2,12 +2,8 @@ const db = window.supabaseClient;
 const $ = (selector) => document.querySelector(selector);
 let currentUser = null;
 const messageTimers = new Map();
-const wait = (milliseconds) => new Promise(resolve => window.setTimeout(resolve, milliseconds));
-const passwordVerifier = window.supabase.createClient(
-  'https://jipiurqxddchjtwlmltf.supabase.co',
-  'sb_publishable_FW1xMNmOPK2EvX6N-fZZSw_DRUUJDUr',
-  { auth: { autoRefreshToken: false, detectSessionInUrl: false, persistSession: false } }
-);
+const supabaseUrl = 'https://jipiurqxddchjtwlmltf.supabase.co';
+const supabasePublishableKey = 'sb_publishable_FW1xMNmOPK2EvX6N-fZZSw_DRUUJDUr';
 
 const displayNameFor = (account) => account?.user_metadata?.username?.trim() || account?.email?.split('@')[0] || 'My profile';
 const initialsFor = (name) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase() || 'EC';
@@ -67,25 +63,29 @@ $('#passwordForm').addEventListener('submit', async (event) => {
   const verification = await db.auth.signInWithPassword({ email: currentUser.email, password: currentPassword });
   if (verification.error) { $('#savePassword').disabled = false; showMessage('#passwordMessage', 'Your current password is incorrect.'); return; }
   showMessage('#passwordMessage', 'Updating password…');
-  const updateRequest = db.auth.updateUser({ password: newPassword })
-    .then(result => ({ ...result, timedOut: false }))
-    .catch(error => ({ error, timedOut: false }));
-  const updateResult = await Promise.race([
-    updateRequest,
-    wait(2500).then(() => ({ timedOut: true }))
-  ]);
+  const { data: { session }, error: sessionError } = await db.auth.getSession();
+  if (sessionError || !session?.access_token) { $('#savePassword').disabled = false; showMessage('#passwordMessage', 'Your session has expired. Please sign in again.'); return; }
+  const controller = new AbortController();
+  const requestTimeout = window.setTimeout(() => controller.abort(), 8000);
+  let response;
+  let responseBody;
+  try {
+    response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      method: 'PUT',
+      headers: { apikey: supabasePublishableKey, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: newPassword }),
+      signal: controller.signal
+    });
+    responseBody = await response.json().catch(() => ({}));
+  } catch (error) {
+    $('#savePassword').disabled = false;
+    showMessage('#passwordMessage', error.name === 'AbortError' ? 'Password update timed out. Please try again.' : 'Could not update your password. Please try again.');
+    return;
+  } finally {
+    window.clearTimeout(requestTimeout);
+  }
   $('#savePassword').disabled = false;
-  if (updateResult.timedOut) {
-    let newPasswordVerified = null;
-    for (let attempt = 0; attempt < 3 && !newPasswordVerified; attempt += 1) {
-      newPasswordVerified = await passwordVerifier.auth.signInWithPassword({ email: currentUser.email, password: newPassword });
-      if (newPasswordVerified.error && attempt < 2) await wait(1000);
-    }
-    if (newPasswordVerified?.error) {
-      showMessage('#passwordMessage', 'Password update is taking longer than expected. Please wait a moment, then try signing in with your new password.');
-      return;
-    }
-  } else if (updateResult.error) { showMessage('#passwordMessage', updateResult.error.message); return; }
+  if (!response.ok) { showMessage('#passwordMessage', responseBody.message || 'Could not update your password. Please try again.'); return; }
   event.currentTarget.reset();
   showMessage('#passwordMessage', 'Password updated successfully.', true);
 });
