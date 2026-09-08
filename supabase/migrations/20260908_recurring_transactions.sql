@@ -31,3 +31,9 @@ create policy "Users manage their recurring transactions"
 
 create index if not exists recurring_transactions_user_start_date_idx
   on public.recurring_transactions (user_id, start_date);
+
+-- Generated schedules are stored as normal transactions so each payment can be
+-- edited or removed individually while retaining its position in the schedule.
+alter table public.transactions add column if not exists recurrence_group_id uuid;
+alter table public.transactions add column if not exists recurrence_index integer;
+alter table public.transactions add column if not exists recurrence_count integer;
