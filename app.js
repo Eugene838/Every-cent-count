@@ -186,7 +186,17 @@ function render() {
   $('#editBudget').textContent = data.budget ? 'Edit budget' : 'Set budget';
   $('#budgetProgress').style.width = `${usedCapped}%`;
   $('#budgetDonut').style.background = `conic-gradient(${spending > data.budget ? '#c26e68' : 'var(--green)'} 0deg ${usedCapped * 3.6}deg, #e5eee8 ${usedCapped * 3.6}deg 360deg)`;
-  renderCategories(transactions); renderTransactions(data.transactions); renderChart(data.transactions); renderInsight(spending, income, used); renderBalanceHistory(); renderDescriptionSuggestions();
+  renderMetricDetails(transactions); renderCategories(transactions); renderTransactions(data.transactions); renderChart(data.transactions); renderInsight(spending, income, used); renderBalanceHistory(); renderDescriptionSuggestions();
+}
+
+function renderMetricDetails(transactions) {
+  [['income', 'incomeDetail'], ['expense', 'spendingDetail']].forEach(([type, target]) => {
+    const entries = transactions.filter(entry => entry.type === type).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || '').localeCompare(a.createdAt || ''));
+    const total = entries.reduce((sum, entry) => sum + entry.amount, 0);
+    const title = type === 'income' ? 'Income this month' : 'Spending this month';
+    const rows = entries.length ? entries.map(entry => `<li><span>${escapeHTML(entry.description)}</span><span>${dateLabel(entry.date)} · ${money(entry.amount)}</span></li>`).join('') : '<li class="metric-detail-empty">No entries this month</li>';
+    $(`#${target}`).innerHTML = `<strong>${title} · ${money(total)}</strong><ul>${rows}</ul>`;
+  });
 }
 
 function renderDescriptionSuggestions() {
@@ -402,6 +412,13 @@ $('#transactionForm').addEventListener('submit', async (event) => {
 });
 document.querySelectorAll('.type-choice').forEach(button => button.addEventListener('click', () => setTransactionType(button.dataset.type)));
 $('#recurrenceInput').addEventListener('change', updateRecurrenceFields);
+document.querySelectorAll('.metric-detail-trigger').forEach(button => button.addEventListener('click', (event) => {
+  event.stopPropagation();
+  const opening = button.getAttribute('aria-expanded') !== 'true';
+  document.querySelectorAll('.metric-detail-trigger').forEach(item => item.setAttribute('aria-expanded', 'false'));
+  button.setAttribute('aria-expanded', String(opening));
+}));
+document.addEventListener('click', () => document.querySelectorAll('.metric-detail-trigger').forEach(button => button.setAttribute('aria-expanded', 'false')));
 $('#editBudget').addEventListener('click', openBudget);
 $('#budgetForm').addEventListener('submit', async (event) => {
   event.preventDefault(); const amount = Number(new FormData(event.target).get('budget'));
