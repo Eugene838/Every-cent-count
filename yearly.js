@@ -21,7 +21,8 @@ function scheduledTransactions() {
     const start = new Date(`${template.startDate}T00:00:00`); let date = new Date(start); const entries = []; let safety = 0;
     while (date <= endLimit && safety++ < 1000) {
       if (date >= startLimit) entries.push({ amount: template.amount, type: template.type, date: dateKey(date) });
-      if (template.recurrence === 'monthly') date = addMonths(date, 1);
+      if (template.recurrence === 'daily') date = plusDays(date, 1);
+      else if (template.recurrence === 'monthly') date = addMonths(date, 1);
       else if (template.recurrence === 'quarterly') date = addMonths(date, 3);
       else if (template.recurrence === 'yearly') date = addMonths(date, 12);
       else date = plusDays(date, Math.max(1, Math.round((new Date(`${template.cycleEndDate}T00:00:00`) - start) / 86400000)));

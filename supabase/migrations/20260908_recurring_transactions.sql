@@ -7,7 +7,7 @@ create table if not exists public.recurring_transactions (
   category text not null,
   amount numeric not null check (amount > 0),
   type text not null check (type in ('income', 'expense')),
-  recurrence text not null check (recurrence in ('monthly', 'quarterly', 'yearly', 'custom')),
+  recurrence text not null check (recurrence in ('daily', 'monthly', 'quarterly', 'yearly', 'custom')),
   start_date date not null,
   cycle_end_date date,
   created_at timestamptz not null default now(),

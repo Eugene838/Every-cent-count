@@ -62,7 +62,8 @@ function scheduledTransactions() {
     let safety = 0;
     while (date <= today && safety++ < 1000) {
       if (date >= earliest) occurrences.push({ ...template, id: `recurring:${template.id}:${dateKey(date)}`, date: dateKey(date), recurring: true, recurringId: template.id, createdAt: template.createdAt });
-      if (template.recurrence === 'monthly') date = addMonths(date, 1);
+      if (template.recurrence === 'daily') date = plusDays(date, 1);
+      else if (template.recurrence === 'monthly') date = addMonths(date, 1);
       else if (template.recurrence === 'quarterly') date = addMonths(date, 3);
       else if (template.recurrence === 'yearly') date = addMonths(date, 12);
       else {
