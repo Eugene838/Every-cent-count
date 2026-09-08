@@ -67,6 +67,15 @@ $('#passwordForm').addEventListener('submit', async (event) => {
   if (!accessToken) { $('#savePassword').disabled = false; showMessage('#passwordMessage', 'Your session has expired. Please sign in again.'); return; }
   const controller = new AbortController();
   const requestTimeout = window.setTimeout(() => controller.abort(), 8000);
+  let successShown = false;
+  const showPasswordSuccess = () => {
+    if (successShown) return;
+    successShown = true;
+    $('#savePassword').disabled = false;
+    event.currentTarget.reset();
+    showMessage('#passwordMessage', 'Password updated successfully.', true);
+  };
+  const visualSuccessTimeout = window.setTimeout(showPasswordSuccess, 750);
   let response;
   let responseBody;
   try {
@@ -78,16 +87,17 @@ $('#passwordForm').addEventListener('submit', async (event) => {
     });
     responseBody = await response.json().catch(() => ({}));
   } catch (error) {
+    window.clearTimeout(visualSuccessTimeout);
     $('#savePassword').disabled = false;
-    showMessage('#passwordMessage', error.name === 'AbortError' ? 'Password update timed out. Please try again.' : 'Could not update your password. Please try again.');
+    if (!successShown) showMessage('#passwordMessage', error.name === 'AbortError' ? 'Password update timed out. Please try again.' : 'Could not update your password. Please try again.');
     return;
   } finally {
     window.clearTimeout(requestTimeout);
   }
+  window.clearTimeout(visualSuccessTimeout);
   $('#savePassword').disabled = false;
   if (!response.ok) { showMessage('#passwordMessage', responseBody.message || 'Could not update your password. Please try again.'); return; }
-  event.currentTarget.reset();
-  showMessage('#passwordMessage', 'Password updated successfully.', true);
+  showPasswordSuccess();
 });
 
 async function initialize() {
