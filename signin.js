@@ -52,7 +52,7 @@ $('#authForm').addEventListener('submit', async (event) => {
 async function initialize() {
   if (!db) return;
   const shouldSignOut = new URLSearchParams(window.location.search).has('signout');
-  if (shouldSignOut) { await db.auth.signOut({ scope: 'local' }); return; }
+  if (shouldSignOut) { sessionStorage.removeItem('everyCentProfilePreview'); await db.auth.signOut({ scope: 'local' }); return; }
   const { data: { session } } = await db.auth.getSession();
   if (!session) return;
   const { data: { user }, error } = await db.auth.getUser();

@@ -29,6 +29,7 @@ function renderProfile(account) {
   $('#profileEmail').textContent = account.email || 'Personal account';
   $('#profileAvatar').textContent = initials;
   $('#profileArea').classList.remove('profile-loading');
+  sessionStorage.setItem('everyCentProfilePreview', JSON.stringify({ name, email: account.email || 'Personal account', initials }));
   $('#summaryName').textContent = name;
   $('#summaryEmail').textContent = account.email || 'Personal account';
   $('#summaryAvatar').textContent = initials;
