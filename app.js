@@ -273,7 +273,7 @@ $('#transactionForm').addEventListener('submit', async (event) => {
   editingTransactionId = null; event.target.reset(); $('#transactionModal').close(); render();
 });
 document.querySelectorAll('.type-choice').forEach(button => button.addEventListener('click', () => setTransactionType(button.dataset.type)));
-$('#editBudget').addEventListener('click', openBudget); $('#budgetButton').addEventListener('click', openBudget);
+$('#editBudget').addEventListener('click', openBudget);
 $('#budgetForm').addEventListener('submit', async (event) => {
   event.preventDefault(); const amount = Number(new FormData(event.target).get('budget'));
   const { data: row, error } = await db.from('budgets').upsert({ user_id: user.id, monthly_amount: amount, updated_at: new Date().toISOString() }, { onConflict: 'user_id' }).select('monthly_amount').single();
