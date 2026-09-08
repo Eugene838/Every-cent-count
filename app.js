@@ -12,7 +12,7 @@ const categoryInfo = {
 };
 const expenseCategories = ['Food', 'Transport', 'Shopping', 'Home', 'Entertainment', 'Health', 'Other'];
 const incomeCategories = ['Salary', 'Freelance', 'Capital', 'Other'];
-const emptyData = () => ({ budget: 0, transactions: [], balanceAdjustments: [] });
+const emptyData = () => ({ budget: 0, transactions: [], recurringTransactions: [], balanceAdjustments: [] });
 let data = emptyData();
 let currentDate = new Date();
 const dashboardParams = new URLSearchParams(window.location.search);
@@ -29,6 +29,7 @@ let user = null;
 let transactionPage = 1;
 let transactionPageAnimation = null;
 let editingTransactionId = null;
+let editingRecurringId = null;
 let sessionRecoveryInProgress = false;
 let bulkEditMode = false;
 let activityWeekStart = /^\d{4}-\d{2}-\d{2}$/.test(requestedWeek || '') ? startOfWeek(new Date(`${requestedWeek}T00:00:00`)) : startOfWeek(new Date());
@@ -47,7 +48,32 @@ const dateLabel = (date) => new Intl.DateTimeFormat('en-SG', { month: 'short', d
 const getMonthTransactions = () => data.transactions.filter((entry) => entry.date.startsWith(monthKey(currentDate)));
 const currentBalance = () => data.transactions.reduce((total, entry) => total + (entry.type === 'income' ? entry.amount : -entry.amount), 0) + data.balanceAdjustments.reduce((total, entry) => total + entry.amount, 0);
 const icon = (category) => { const item = categoryInfo[category] || categoryInfo.Other; return `<span class="category-icon" style="background:${item.color}">${item.icon}</span>`; };
-const transactionFromRow = (row) => ({ id: row.id, description: row.description, note: row.note || '', category: row.category, amount: Number(row.amount), type: row.type, date: row.transaction_date, createdAt: row.created_at });
+const transactionFromRow = (row) => ({ id: row.id, description: row.description, note: row.note || '', category: row.category, amount: Number(row.amount), type: row.type, date: row.transaction_date, createdAt: row.created_at, recurring: false });
+const recurringFromRow = (row) => ({ id: row.id, description: row.description, note: row.note || '', category: row.category, amount: Number(row.amount), type: row.type, recurrence: row.recurrence, startDate: row.start_date, cycleEndDate: row.cycle_end_date, createdAt: row.created_at });
+const addMonths = (date, count) => { const next = new Date(date.getFullYear(), date.getMonth() + count, 1); next.setDate(Math.min(date.getDate(), new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate())); return next; };
+const recurrenceLabel = (entry) => entry.recurrence === 'custom' ? `Custom · ${dateLabel(entry.startDate)}–${dateLabel(entry.cycleEndDate)}` : entry.recurrence[0].toUpperCase() + entry.recurrence.slice(1);
+function scheduledTransactions() {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const earliest = new Date(today.getFullYear() - 10, 0, 1);
+  return data.recurringTransactions.flatMap(template => {
+    const start = new Date(`${template.startDate}T00:00:00`);
+    const occurrences = [];
+    let date = new Date(start);
+    let safety = 0;
+    while (date <= today && safety++ < 1000) {
+      if (date >= earliest) occurrences.push({ ...template, id: `recurring:${template.id}:${dateKey(date)}`, date: dateKey(date), recurring: true, recurringId: template.id, createdAt: template.createdAt });
+      if (template.recurrence === 'monthly') date = addMonths(date, 1);
+      else if (template.recurrence === 'quarterly') date = addMonths(date, 3);
+      else if (template.recurrence === 'yearly') date = addMonths(date, 12);
+      else {
+        const cycleDays = Math.round((new Date(`${template.cycleEndDate}T00:00:00`) - start) / 86400000);
+        date = plusDays(date, Math.max(1, cycleDays));
+      }
+    }
+    return occurrences;
+  });
+}
+const refreshScheduledTransactions = () => { data.transactions = [...data.oneOffTransactions, ...scheduledTransactions()]; };
 const adjustmentFromRow = (row) => ({ id: row.id, amount: Number(row.amount), previousBalance: Number(row.previous_balance), newBalance: Number(row.new_balance), note: row.note, date: row.adjustment_date, createdAt: row.created_at });
 const displayNameFor = (account) => account?.user_metadata?.username?.trim() || account?.email?.split('@')[0] || 'My profile';
 
@@ -99,18 +125,23 @@ function operationError(error) {
 }
 
 async function loadData() {
-  const [transactionResult, budgetResult, adjustmentResult] = await Promise.all([
+  const [transactionResult, recurringResult, budgetResult, adjustmentResult] = await Promise.all([
     db.from('transactions').select('*').order('transaction_date', { ascending: false }),
+    db.from('recurring_transactions').select('*').order('start_date', { ascending: false }),
     db.from('budgets').select('monthly_amount').maybeSingle(),
     db.from('balance_adjustments').select('*').order('created_at', { ascending: true })
   ]);
   const error = transactionResult.error || budgetResult.error || adjustmentResult.error;
   if (error) { operationError(error); return; }
+  if (recurringResult.error) console.warn('Recurring transactions are unavailable until the database migration is applied.', recurringResult.error);
   data = {
     budget: Number(budgetResult.data?.monthly_amount || 0),
-    transactions: transactionResult.data.map(transactionFromRow),
+    oneOffTransactions: transactionResult.data.map(transactionFromRow),
+    transactions: [],
+    recurringTransactions: (recurringResult.data || []).map(recurringFromRow),
     balanceAdjustments: adjustmentResult.data.map(adjustmentFromRow)
   };
+  refreshScheduledTransactions();
   render();
 }
 
@@ -175,7 +206,7 @@ function renderTransactions(transactions) {
   transactionPage = Math.min(transactionPage, totalPages);
   const pageStart = (transactionPage - 1) * transactionsPerPage;
   const recent = newestFirst.slice(pageStart, pageStart + transactionsPerPage);
-  list.innerHTML = recent.map(x => { const note = x.note ? escapeHTML(x.note) : 'No note added'; return `<div class="transaction-row"><label class="transaction-selector"><input class="transaction-select" data-id="${x.id}" type="checkbox" aria-label="Select ${x.description}" ${selectedTransactionIds.has(x.id) ? 'checked' : ''} /></label><div class="transaction-name">${icon(x.category)}<span>${x.description}</span></div><span class="transaction-category">${x.category}</span><span class="transaction-note" tabindex="0"><span class="transaction-note-preview">${x.note ? note : '—'}</span><span class="transaction-note-detail" role="tooltip">${note}</span></span><span class="transaction-date">${dateLabel(x.date)}</span><span class="transaction-amount ${x.type}">${x.type === 'income' ? '+' : '−'}${money(x.amount)} <button class="edit-transaction" data-id="${x.id}" aria-label="Edit ${x.description}">✎</button><button class="delete-transaction" data-id="${x.id}" aria-label="Delete ${x.description}">×</button></span></div>`; }).join('');
+  list.innerHTML = recent.map(x => { const note = x.note ? escapeHTML(x.note) : 'No note added'; const schedule = x.recurring ? `<small class="recurrence-badge">↻ ${x.recurrence === 'custom' ? 'Custom cycle' : x.recurrence}</small>` : ''; return `<div class="transaction-row"><label class="transaction-selector"><input class="transaction-select" data-id="${x.id}" type="checkbox" aria-label="Select ${x.description}" ${selectedTransactionIds.has(x.id) ? 'checked' : ''} /></label><div class="transaction-name">${icon(x.category)}<span>${x.description}${schedule}</span></div><span class="transaction-category">${x.category}</span><span class="transaction-note" tabindex="0"><span class="transaction-note-preview">${x.note ? note : '—'}</span><span class="transaction-note-detail" role="tooltip">${note}</span></span><span class="transaction-date">${dateLabel(x.date)}</span><span class="transaction-amount ${x.type}">${x.type === 'income' ? '+' : '−'}${money(x.amount)} <button class="edit-transaction" data-id="${x.id}" aria-label="Edit ${x.description}">✎</button><button class="delete-transaction" data-id="${x.id}" aria-label="Delete ${x.description}">×</button></span></div>`; }).join('');
   list.classList.toggle('has-transactions', Boolean(recent.length));
   list.classList.remove('page-enter-next', 'page-enter-previous');
   if (transactionPageAnimation) {
@@ -204,10 +235,15 @@ function renderTransactions(transactions) {
     if (transaction) openTransactionModal(transaction);
   }));
   list.querySelectorAll('.delete-transaction').forEach(button => button.addEventListener('click', async () => {
-    const { error } = await db.from('transactions').delete().eq('id', button.dataset.id);
+    const transaction = data.transactions.find(x => x.id === button.dataset.id);
+    const { error } = transaction?.recurring
+      ? await db.from('recurring_transactions').delete().eq('id', transaction.recurringId)
+      : await db.from('transactions').delete().eq('id', button.dataset.id);
     if (error) { operationError(error); return; }
     selectedTransactionIds.delete(button.dataset.id);
-    data.transactions = data.transactions.filter(x => x.id !== button.dataset.id);
+    if (transaction?.recurring) data.recurringTransactions = data.recurringTransactions.filter(x => x.id !== transaction.recurringId);
+    else data.oneOffTransactions = data.oneOffTransactions.filter(x => x.id !== button.dataset.id);
+    refreshScheduledTransactions();
     render();
   }));
 }
@@ -249,8 +285,15 @@ function renderBalanceHistory() {
 
 function updateCategoryOptions() { $('#categoryInput').innerHTML = (selectedType === 'income' ? incomeCategories : expenseCategories).map(x => `<option>${x}</option>`).join(''); }
 function setTransactionType(type) { selectedType = type; document.querySelectorAll('.type-choice').forEach(x => x.classList.toggle('active', x.dataset.type === type)); updateCategoryOptions(); }
+function updateRecurrenceFields() {
+  const custom = $('#recurrenceInput').value === 'custom';
+  $('#customCycleFields').hidden = !custom;
+  $('#transactionForm').elements.cycleStart.required = custom;
+  $('#transactionForm').elements.cycleEnd.required = custom;
+}
 function openTransactionModal(transaction = null) {
-  editingTransactionId = transaction?.id || null;
+  editingTransactionId = transaction?.recurring ? null : transaction?.id || null;
+  editingRecurringId = transaction?.recurring ? transaction.recurringId : null;
   const form = $('#transactionForm');
   if (transaction) {
     $('#transactionModalKicker').textContent = 'UPDATE ENTRY';
@@ -261,7 +304,10 @@ function openTransactionModal(transaction = null) {
     form.elements.note.value = transaction.note;
     form.elements.amount.value = transaction.amount;
     form.elements.category.value = transaction.category;
-    form.elements.date.value = transaction.date;
+    form.elements.date.value = transaction.recurring ? transaction.startDate : transaction.date;
+    form.elements.recurrence.value = transaction.recurring ? transaction.recurrence : 'once';
+    form.elements.cycleStart.value = transaction.recurring ? transaction.startDate : '';
+    form.elements.cycleEnd.value = transaction.recurring?.cycleEndDate || '';
   } else {
     $('#transactionModalKicker').textContent = 'NEW ENTRY';
     $('#transactionModalTitle').textContent = 'Add transaction';
@@ -269,7 +315,9 @@ function openTransactionModal(transaction = null) {
     form.reset();
     setTransactionType('expense');
     form.elements.date.value = dateKey(new Date());
+    form.elements.recurrence.value = 'once';
   }
+  updateRecurrenceFields();
   $('#transactionModal').showModal();
 }
 function openBudget() { $('#budgetForm [name="budget"]').value = data.budget; $('#budgetModal').showModal(); }
@@ -278,17 +326,37 @@ function openBalanceModal() { $('#balanceForm [name="balance"]').value = current
 $('#openTransactionModal').addEventListener('click', () => openTransactionModal());
 $('#transactionForm').addEventListener('submit', async (event) => {
   event.preventDefault(); const form = new FormData(event.target);
+  const recurrence = form.get('recurrence');
+  if (recurrence === 'custom' && form.get('cycleEnd') <= form.get('cycleStart')) {
+    window.alert('The custom cycle end date must be after its start date.'); return;
+  }
   const transactionValues = { description: form.get('description').trim(), note: form.get('note').trim() || null, category: form.get('category'), amount: Number(form.get('amount')), type: selectedType, transaction_date: form.get('date') };
-  const result = editingTransactionId
+  const recurringValues = { description: form.get('description').trim(), note: form.get('note').trim() || null, category: form.get('category'), amount: Number(form.get('amount')), type: selectedType, recurrence, start_date: recurrence === 'custom' ? form.get('cycleStart') : form.get('date'), cycle_end_date: recurrence === 'custom' ? form.get('cycleEnd') : null, updated_at: new Date().toISOString() };
+  let result;
+  if (recurrence === 'once' && editingRecurringId) {
+    const removal = await db.from('recurring_transactions').delete().eq('id', editingRecurringId);
+    if (removal.error) { operationError(removal.error); return; }
+    result = await db.from('transactions').insert({ user_id: user.id, ...transactionValues }).select().single();
+  } else result = recurrence !== 'once'
+    ? (editingRecurringId ? await db.from('recurring_transactions').update(recurringValues).eq('id', editingRecurringId).select().single() : await db.from('recurring_transactions').insert({ user_id: user.id, ...recurringValues }).select().single())
+    : editingTransactionId
     ? await db.from('transactions').update(transactionValues).eq('id', editingTransactionId).select().single()
     : await db.from('transactions').insert({ user_id: user.id, ...transactionValues }).select().single();
   const { data: row, error } = result;
   if (error) { operationError(error); return; }
-  if (editingTransactionId) data.transactions = data.transactions.map(x => x.id === editingTransactionId ? transactionFromRow(row) : x);
-  else { data.transactions.push(transactionFromRow(row)); transactionPage = 1; }
-  editingTransactionId = null; event.target.reset(); $('#transactionModal').close(); render();
+  if (recurrence !== 'once') {
+    const updated = recurringFromRow(row);
+    if (editingRecurringId) data.recurringTransactions = data.recurringTransactions.map(x => x.id === editingRecurringId ? updated : x);
+    else data.recurringTransactions.push(updated);
+  } else if (editingRecurringId) {
+    data.recurringTransactions = data.recurringTransactions.filter(x => x.id !== editingRecurringId);
+    data.oneOffTransactions.push(transactionFromRow(row));
+  } else if (editingTransactionId) data.oneOffTransactions = data.oneOffTransactions.map(x => x.id === editingTransactionId ? transactionFromRow(row) : x);
+  else { data.oneOffTransactions.push(transactionFromRow(row)); transactionPage = 1; }
+  refreshScheduledTransactions(); editingTransactionId = null; editingRecurringId = null; event.target.reset(); $('#transactionModal').close(); render();
 });
 document.querySelectorAll('.type-choice').forEach(button => button.addEventListener('click', () => setTransactionType(button.dataset.type)));
+$('#recurrenceInput').addEventListener('change', updateRecurrenceFields);
 $('#editBudget').addEventListener('click', openBudget);
 $('#budgetForm').addEventListener('submit', async (event) => {
   event.preventDefault(); const amount = Number(new FormData(event.target).get('budget'));
@@ -349,9 +417,17 @@ $('#clearTransactionSelection').addEventListener('click', () => { selectedTransa
 $('#bulkDeleteTransactions').addEventListener('click', async () => {
   const ids = [...selectedTransactionIds];
   if (!ids.length || !window.confirm(`Delete ${ids.length} selected transaction${ids.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
-  const { error } = await db.from('transactions').delete().in('id', ids);
-  if (error) { operationError(error); return; }
-  data.transactions = data.transactions.filter(transaction => !selectedTransactionIds.has(transaction.id));
+  const selected = data.transactions.filter(transaction => selectedTransactionIds.has(transaction.id));
+  const oneOffIds = selected.filter(transaction => !transaction.recurring).map(transaction => transaction.id);
+  const recurringIds = [...new Set(selected.filter(transaction => transaction.recurring).map(transaction => transaction.recurringId))];
+  const [oneOffResult, recurringResult] = await Promise.all([
+    oneOffIds.length ? db.from('transactions').delete().in('id', oneOffIds) : Promise.resolve({ error: null }),
+    recurringIds.length ? db.from('recurring_transactions').delete().in('id', recurringIds) : Promise.resolve({ error: null })
+  ]);
+  if (oneOffResult.error || recurringResult.error) { operationError(oneOffResult.error || recurringResult.error); return; }
+  data.oneOffTransactions = data.oneOffTransactions.filter(transaction => !oneOffIds.includes(transaction.id));
+  data.recurringTransactions = data.recurringTransactions.filter(transaction => !recurringIds.includes(transaction.id));
+  refreshScheduledTransactions();
   selectedTransactionIds.clear();
   render();
 });

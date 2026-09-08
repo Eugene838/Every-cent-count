@@ -5,13 +5,30 @@ if (cleanPageUrl.searchParams.has('v')) {
   window.history.replaceState({}, '', `${cleanPageUrl.pathname}${cleanPageUrl.search}${cleanPageUrl.hash}`);
 }
 
-let data = { budget: 0, transactions: [], balanceAdjustments: [] };
+let data = { budget: 0, transactions: [], recurringTransactions: [], balanceAdjustments: [] };
 let selectedYear = new Date().getFullYear();
 
 const $ = (selector) => document.querySelector(selector);
 const money = (amount) => new Intl.NumberFormat('en-SG', { style: 'currency', currency: 'SGD', minimumFractionDigits: 2 }).format(amount);
 const dateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const transactionFromRow = (row) => ({ amount: Number(row.amount), type: row.type, date: row.transaction_date });
+const recurringFromRow = (row) => ({ amount: Number(row.amount), type: row.type, recurrence: row.recurrence, startDate: row.start_date, cycleEndDate: row.cycle_end_date });
+const plusDays = (date, amount) => { const next = new Date(date); next.setDate(next.getDate() + amount); return next; };
+const addMonths = (date, count) => { const next = new Date(date.getFullYear(), date.getMonth() + count, 1); next.setDate(Math.min(date.getDate(), new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate())); return next; };
+function scheduledTransactions() {
+  const startLimit = new Date(selectedYear, 0, 1); const endLimit = new Date(selectedYear, 11, 31);
+  return data.recurringTransactions.flatMap(template => {
+    const start = new Date(`${template.startDate}T00:00:00`); let date = new Date(start); const entries = []; let safety = 0;
+    while (date <= endLimit && safety++ < 1000) {
+      if (date >= startLimit) entries.push({ amount: template.amount, type: template.type, date: dateKey(date) });
+      if (template.recurrence === 'monthly') date = addMonths(date, 1);
+      else if (template.recurrence === 'quarterly') date = addMonths(date, 3);
+      else if (template.recurrence === 'yearly') date = addMonths(date, 12);
+      else date = plusDays(date, Math.max(1, Math.round((new Date(`${template.cycleEndDate}T00:00:00`) - start) / 86400000)));
+    }
+    return entries;
+  });
+}
 const adjustmentFromRow = (row) => ({ amount: Number(row.amount), date: row.adjustment_date });
 const displayNameFor = (account) => account?.user_metadata?.username?.trim() || account?.email?.split('@')[0] || 'My profile';
 
@@ -47,21 +64,24 @@ function getWeeklySpending(monthIndex, entries) {
 }
 
 async function loadData() {
-  const [transactionResult, budgetResult, adjustmentResult] = await Promise.all([
+  const [transactionResult, recurringResult, budgetResult, adjustmentResult] = await Promise.all([
     db.from('transactions').select('amount, type, transaction_date').order('transaction_date', { ascending: false }),
+    db.from('recurring_transactions').select('amount, type, recurrence, start_date, cycle_end_date'),
     db.from('budgets').select('monthly_amount').maybeSingle(),
     db.from('balance_adjustments').select('amount, adjustment_date')
   ]);
   const error = transactionResult.error || budgetResult.error || adjustmentResult.error;
   if (error) { window.alert(`Could not load your yearly data. ${error.message}`); return; }
-  data = { budget: Number(budgetResult.data?.monthly_amount || 0), transactions: transactionResult.data.map(transactionFromRow), balanceAdjustments: adjustmentResult.data.map(adjustmentFromRow) };
+  if (recurringResult.error) console.warn('Recurring transactions are unavailable until the database migration is applied.', recurringResult.error);
+  data = { budget: Number(budgetResult.data?.monthly_amount || 0), transactions: transactionResult.data.map(transactionFromRow), recurringTransactions: (recurringResult.data || []).map(recurringFromRow), balanceAdjustments: adjustmentResult.data.map(adjustmentFromRow) };
   renderYear();
 }
 
 function renderYear() {
+  const scheduled = scheduledTransactions();
   const months = Array.from({ length: 12 }, (_, index) => {
     const key = `${selectedYear}-${String(index + 1).padStart(2, '0')}`;
-    const entries = data.transactions.filter(entry => entry.date.startsWith(key));
+    const entries = [...data.transactions, ...scheduled].filter(entry => entry.date.startsWith(key));
     const income = entries.filter(entry => entry.type === 'income').reduce((total, entry) => total + entry.amount, 0);
     const spending = entries.filter(entry => entry.type === 'expense').reduce((total, entry) => total + entry.amount, 0);
     const adjustments = data.balanceAdjustments.filter(entry => entry.date.startsWith(key)).reduce((total, entry) => total + entry.amount, 0);
