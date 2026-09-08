@@ -123,7 +123,7 @@ function renderChart(transactions) {
   const max = Math.max(...weekly, 1);
   $('#barChart').innerHTML = weekly.map((value, index) => {
     const entries = expenses.filter(x => (new Date(`${x.date}T00:00:00`).getDay() + 6) % 7 === index).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || '').localeCompare(a.createdAt || ''));
-    const entryList = entries.length ? entries.map(x => `<li><span>${x.description}</span><span>${dateLabel(x.date)} · ${money(x.amount)}</span></li>`).join('') : '<li class="bar-detail-empty">No spending entries</li>';
+    const entryList = entries.length ? entries.map(x => `<li><span class="bar-entry-name">${x.description}</span><time class="bar-entry-date" datetime="${x.date}">${dateLabel(x.date)}</time><span class="bar-entry-amount">${money(x.amount)}</span></li>`).join('') : '<li class="bar-detail-empty">No spending entries</li>';
     const edgeClass = index === 0 ? 'bar-edge-start' : index === 6 ? 'bar-edge-end' : '';
     return `<div class="bar ${index === 5 ? 'current' : ''} ${edgeClass}" tabindex="0" aria-label="${days[index]} spending details" data-value="${money(value)}" style="height:${Math.max(5, (value / max) * 100)}%"><div class="bar-detail"><strong>${days[index]} · ${money(value)}</strong><ul>${entryList}</ul></div></div>`;
   }).join('');
