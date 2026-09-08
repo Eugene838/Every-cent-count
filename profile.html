@@ -21,7 +21,7 @@
         </nav>
         <div class="sidebar-bottom">
           <div class="profile">
-            <a class="profile-link" href="profile.html?v=8" aria-current="page" aria-label="Open profile">
+            <a class="profile-link" href="profile.html?v=9" aria-current="page" aria-label="Open profile">
               <div class="avatar" id="profileAvatar">EC</div>
               <div><strong id="profileName">My profile</strong><small id="profileEmail">Personal account</small></div>
             </a>
@@ -52,6 +52,16 @@
             </article>
 
             <article class="profile-card">
+              <h2>Change email</h2>
+              <p>We’ll send a confirmation link before your sign-in email is changed.</p>
+              <form class="profile-form" id="emailForm">
+                <label>New email address <input id="emailInput" name="email" type="email" autocomplete="email" required /></label>
+                <button class="submit-transaction" type="submit" id="saveEmail">Update email</button>
+                <p class="profile-message" id="emailMessage" role="status"></p>
+              </form>
+            </article>
+
+            <article class="profile-card">
               <h2>Change password</h2>
               <p>Confirm your current password before setting a new one.</p>
               <form class="profile-form" id="passwordForm">
@@ -69,6 +79,6 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js"></script>
-    <script src="profile.js?v=8"></script>
+    <script src="profile.js?v=9"></script>
   </body>
 </html>

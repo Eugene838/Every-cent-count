@@ -32,6 +32,7 @@ function renderProfile(account) {
   $('#summaryEmail').textContent = account.email || 'Personal account';
   $('#summaryAvatar').textContent = initials;
   $('#usernameInput').value = name;
+  $('#emailInput').value = account.email || '';
 }
 
 $('#menuButton').addEventListener('click', () => $('.sidebar').classList.toggle('open'));
@@ -48,6 +49,50 @@ $('#usernameForm').addEventListener('submit', async (event) => {
   currentUser = data.user || currentUser;
   renderProfile(currentUser);
   showMessage('#usernameMessage', 'Username updated.', true);
+});
+
+$('#emailForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const formElement = event.currentTarget;
+  const email = new FormData(formElement).get('email').trim().toLowerCase();
+  if (email === currentUser.email?.toLowerCase()) { showMessage('#emailMessage', 'That is already your sign-in email.'); return; }
+  $('#saveEmail').disabled = true;
+  showMessage('#emailMessage', 'Requesting email change…');
+  const { data: { session }, error: sessionError } = await db.auth.getSession();
+  if (sessionError || !session?.access_token) { $('#saveEmail').disabled = false; showMessage('#emailMessage', 'Your session has expired. Please sign in again.'); return; }
+  const controller = new AbortController();
+  const requestTimeout = window.setTimeout(() => controller.abort(), 8000);
+  let confirmationShown = false;
+  const showConfirmation = () => {
+    if (confirmationShown) return;
+    confirmationShown = true;
+    $('#saveEmail').disabled = false;
+    showMessage('#emailMessage', 'Confirmation email sent. Check your inbox to finish changing your email.', true);
+  };
+  const visualConfirmationTimeout = window.setTimeout(showConfirmation, 750);
+  let response;
+  let responseBody;
+  try {
+    response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      method: 'PUT',
+      headers: { apikey: supabasePublishableKey, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+      signal: controller.signal
+    });
+    responseBody = await response.json().catch(() => ({}));
+  } catch (error) {
+    window.clearTimeout(visualConfirmationTimeout);
+    $('#saveEmail').disabled = false;
+    if (!confirmationShown) showMessage('#emailMessage', error.name === 'AbortError' ? 'Email update timed out. Please try again.' : 'Could not update your email. Please try again.');
+    return;
+  } finally {
+    window.clearTimeout(requestTimeout);
+  }
+  window.clearTimeout(visualConfirmationTimeout);
+  $('#saveEmail').disabled = false;
+  if (!response.ok) { showMessage('#emailMessage', responseBody.message || 'Could not update your email. Please try again.'); return; }
+  formElement.reset();
+  showConfirmation();
 });
 
 $('#passwordForm').addEventListener('submit', async (event) => {
