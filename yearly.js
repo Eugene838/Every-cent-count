@@ -86,6 +86,17 @@ function renderYear() {
 $('#previousYear').addEventListener('click', () => { selectedYear -= 1; renderYear(); });
 $('#nextYear').addEventListener('click', () => { selectedYear += 1; renderYear(); });
 $('#menuButton').addEventListener('click', () => $('.sidebar').classList.toggle('open'));
+function installPageNavigation() {
+  document.querySelectorAll('.brand, .nav a, .profile-menu a').forEach(link => link.addEventListener('click', (event) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const destination = new URL(link.href, window.location.href);
+    if (destination.origin !== window.location.origin || destination.href === window.location.href) return;
+    event.preventDefault();
+    document.body.classList.add('page-leaving');
+    window.setTimeout(() => window.location.assign(destination.href), 170);
+  }));
+}
+installPageNavigation();
 const profileMenuTrigger = $('#profileMenuTrigger');
 const profileMenu = $('#profileMenu');
 if (profileMenuTrigger && profileMenu) {
