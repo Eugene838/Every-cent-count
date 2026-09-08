@@ -1,0 +1,6 @@
+.android-tools/
+android/build/
+android/signing/
+dist/
+.idea/
+*.iml
