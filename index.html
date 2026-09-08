@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=9" />
+    <link rel="stylesheet" href="styles.css?v=10" />
   </head>
   <body>
     <div class="shell">
@@ -102,10 +102,10 @@
             </article>
 
             <article class="panel activity-panel" id="insights">
-              <div class="panel-heading"><div><p class="section-kicker">SPENDING PATTERN</p><h2>Daily activity</h2></div><button class="text-button">This month <span>⌄</span></button></div>
+              <div class="panel-heading"><div><p class="section-kicker">SPENDING PATTERN</p><h2>Daily activity</h2></div><div class="week-control"><button id="previousActivityWeek" type="button" aria-label="Previous week">‹</button><span id="activityWeekLabel"></span><button id="nextActivityWeek" type="button" aria-label="Next week">›</button></div></div>
               <div class="chart-meta"><strong id="averageSpend">$0</strong><span>average daily spend</span><span class="chart-legend"><i></i> Spending</span></div>
               <div class="bar-chart" id="barChart" aria-label="Daily spending chart"></div>
-              <div class="chart-days"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+              <div class="chart-days" id="chartDays"></div>
               <div class="insight-callout"><span>✦</span><p id="insightText">Add a few transactions to see your spending story.</p></div>
             </article>
           </section>
@@ -175,6 +175,6 @@
     </dialog>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js?v=2"></script>
-    <script src="app.js?v=13"></script>
+    <script src="app.js?v=14"></script>
   </body>
 </html>

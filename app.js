@@ -19,6 +19,7 @@ let transactionPageAnimation = null;
 let editingTransactionId = null;
 let sessionRecoveryInProgress = false;
 let bulkEditMode = false;
+let activityWeekStart = startOfWeek(new Date());
 const selectedTransactionIds = new Set();
 const transactionsPerPage = 5;
 
@@ -27,6 +28,9 @@ const money = (amount) => new Intl.NumberFormat('en-SG', { style: 'currency', cu
 const shortMoney = (amount) => new Intl.NumberFormat('en-SG', { style: 'currency', currency: 'SGD', maximumFractionDigits: 0 }).format(amount);
 const monthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 const dateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+function startOfWeek(date) { const start = new Date(date.getFullYear(), date.getMonth(), date.getDate()); start.setDate(start.getDate() - ((start.getDay() + 6) % 7)); return start; }
+function plusDays(date, amount) { const next = new Date(date); next.setDate(next.getDate() + amount); return next; }
+const escapeHTML = (value) => String(value).replace(/[&<>'"]/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[character]);
 const dateLabel = (date) => new Intl.DateTimeFormat('en-SG', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(`${date}T00:00:00`));
 const getMonthTransactions = () => data.transactions.filter((entry) => entry.date.startsWith(monthKey(currentDate)));
 const currentBalance = () => data.transactions.reduce((total, entry) => total + (entry.type === 'income' ? entry.amount : -entry.amount), 0) + data.balanceAdjustments.reduce((total, entry) => total + entry.amount, 0);
@@ -110,7 +114,7 @@ function render() {
   $('#editBudget').textContent = data.budget ? 'Edit budget' : 'Set budget';
   $('#budgetProgress').style.width = `${usedCapped}%`;
   $('#budgetDonut').style.background = `conic-gradient(${spending > data.budget ? '#c26e68' : 'var(--green)'} 0deg ${usedCapped * 3.6}deg, #e5eee8 ${usedCapped * 3.6}deg 360deg)`;
-  renderCategories(transactions); renderTransactions(data.transactions); renderChart(transactions); renderInsight(spending, income, used); renderBalanceHistory(); renderDescriptionSuggestions();
+  renderCategories(transactions); renderTransactions(data.transactions); renderChart(data.transactions); renderInsight(spending, income, used); renderBalanceHistory(); renderDescriptionSuggestions();
 }
 
 function renderDescriptionSuggestions() {
@@ -148,7 +152,7 @@ function renderTransactions(transactions) {
   transactionPage = Math.min(transactionPage, totalPages);
   const pageStart = (transactionPage - 1) * transactionsPerPage;
   const recent = newestFirst.slice(pageStart, pageStart + transactionsPerPage);
-  list.innerHTML = recent.map(x => `<div class="transaction-row"><label class="transaction-selector"><input class="transaction-select" data-id="${x.id}" type="checkbox" aria-label="Select ${x.description}" ${selectedTransactionIds.has(x.id) ? 'checked' : ''} /></label><div class="transaction-name">${icon(x.category)}<span>${x.description}</span></div><span class="transaction-category">${x.category}</span><span class="transaction-note" title="${x.note || ''}">${x.note || '—'}</span><span class="transaction-date">${dateLabel(x.date)}</span><span class="transaction-amount ${x.type}">${x.type === 'income' ? '+' : '−'}${money(x.amount)} <button class="edit-transaction" data-id="${x.id}" aria-label="Edit ${x.description}">✎</button><button class="delete-transaction" data-id="${x.id}" aria-label="Delete ${x.description}">×</button></span></div>`).join('');
+  list.innerHTML = recent.map(x => { const note = x.note ? escapeHTML(x.note) : 'No note added'; return `<div class="transaction-row"><label class="transaction-selector"><input class="transaction-select" data-id="${x.id}" type="checkbox" aria-label="Select ${x.description}" ${selectedTransactionIds.has(x.id) ? 'checked' : ''} /></label><div class="transaction-name">${icon(x.category)}<span>${x.description}</span></div><span class="transaction-category">${x.category}</span><span class="transaction-note" tabindex="0"><span class="transaction-note-preview">${x.note ? note : '—'}</span><span class="transaction-note-detail" role="tooltip">${note}</span></span><span class="transaction-date">${dateLabel(x.date)}</span><span class="transaction-amount ${x.type}">${x.type === 'income' ? '+' : '−'}${money(x.amount)} <button class="edit-transaction" data-id="${x.id}" aria-label="Edit ${x.description}">✎</button><button class="delete-transaction" data-id="${x.id}" aria-label="Delete ${x.description}">×</button></span></div>`; }).join('');
   list.classList.toggle('has-transactions', Boolean(recent.length));
   list.classList.remove('page-enter-next', 'page-enter-previous');
   if (transactionPageAnimation) {
@@ -186,17 +190,24 @@ function renderTransactions(transactions) {
 }
 
 function renderChart(transactions) {
-  const weekly = Array(7).fill(0); const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']; const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-  const expenses = transactions.filter(x => x.type === 'expense');
-  expenses.forEach(x => { const day = new Date(`${x.date}T00:00:00`).getDay(); weekly[(day + 6) % 7] += x.amount; });
-  const max = Math.max(...weekly, 1);
-  $('#barChart').innerHTML = weekly.map((value, index) => {
-    const entries = expenses.filter(x => (new Date(`${x.date}T00:00:00`).getDay() + 6) % 7 === index).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || '').localeCompare(a.createdAt || ''));
-    const entryList = entries.length ? entries.map(x => `<li><span class="bar-entry-name">${x.description}</span><time class="bar-entry-date" datetime="${x.date}">${dateLabel(x.date)}</time><span class="bar-entry-amount">${money(x.amount)}</span></li>`).join('') : '<li class="bar-detail-empty">No spending entries</li>';
+  const weekDates = Array.from({ length: 7 }, (_, index) => plusDays(activityWeekStart, index));
+  const weekEnd = weekDates.at(-1);
+  const expenses = transactions.filter(x => x.type === 'expense' && x.date >= dateKey(activityWeekStart) && x.date <= dateKey(weekEnd));
+  const totals = weekDates.map(date => expenses.filter(x => x.date === dateKey(date)).reduce((sum, x) => sum + x.amount, 0));
+  const max = Math.max(...totals, 1);
+  const today = dateKey(new Date());
+  const weekFormatter = new Intl.DateTimeFormat('en-SG', { month: 'short', day: 'numeric' });
+  $('#activityWeekLabel').textContent = `${weekFormatter.format(activityWeekStart)} – ${weekFormatter.format(weekEnd)}`;
+  $('#chartDays').innerHTML = weekDates.map(date => `<span>${new Intl.DateTimeFormat('en-SG', { weekday: 'short' }).format(date)} ${date.getDate()}</span>`).join('');
+  $('#barChart').innerHTML = totals.map((value, index) => {
+    const date = weekDates[index];
+    const entries = expenses.filter(x => x.date === dateKey(date)).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    const entryList = entries.length ? entries.map(x => `<li><span class="bar-entry-name">${x.description}</span><span class="bar-entry-amount">${money(x.amount)}</span></li>`).join('') : '<li class="bar-detail-empty">No spending entries</li>';
     const edgeClass = index === 0 ? 'bar-edge-start' : index === 6 ? 'bar-edge-end' : '';
-    return `<div class="bar ${index === 5 ? 'current' : ''} ${edgeClass}" tabindex="0" aria-label="${days[index]} spending details" data-value="${money(value)}" style="height:${Math.max(5, (value / max) * 100)}%"><div class="bar-detail"><strong>${days[index]} · ${money(value)}</strong><ul>${entryList}</ul></div></div>`;
+    const weekday = new Intl.DateTimeFormat('en-SG', { weekday: 'long' }).format(date);
+    return `<div class="bar ${dateKey(date) === today ? 'current' : ''} ${edgeClass}" tabindex="0" aria-label="${dateLabel(dateKey(date))} spending details" data-value="${money(value)}" style="height:${Math.max(5, (value / max) * 100)}%"><div class="bar-detail"><strong>${weekday} · ${money(value)}</strong><ul>${entryList}</ul></div></div>`;
   }).join('');
-  const spend = weekly.reduce((a, b) => a + b, 0); $('#averageSpend').textContent = shortMoney(spend / Math.max(daysInMonth, 1));
+  const spend = totals.reduce((a, b) => a + b, 0); $('#averageSpend').textContent = shortMoney(spend / 7);
 }
 
 function renderInsight(spending, income, used) {
@@ -275,6 +286,8 @@ $('#nextMonth').addEventListener('click', () => { currentDate.setMonth(currentDa
 $('#menuButton').addEventListener('click', () => $('.sidebar').classList.toggle('open'));
 $('#previousTransactionPage').addEventListener('click', () => { transactionPageAnimation = 'previous'; transactionPage -= 1; render(); });
 $('#nextTransactionPage').addEventListener('click', () => { transactionPageAnimation = 'next'; transactionPage += 1; render(); });
+$('#previousActivityWeek').addEventListener('click', () => { activityWeekStart = plusDays(activityWeekStart, -7); renderChart(data.transactions); });
+$('#nextActivityWeek').addEventListener('click', () => { activityWeekStart = plusDays(activityWeekStart, 7); renderChart(data.transactions); });
 $('#toggleBulkEdit').addEventListener('click', () => {
   bulkEditMode = !bulkEditMode;
   if (!bulkEditMode) selectedTransactionIds.clear();
