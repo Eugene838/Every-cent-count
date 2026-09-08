@@ -250,7 +250,7 @@ function renderTransactions(transactions) {
   transactionPage = Math.min(transactionPage, totalPages);
   const pageStart = (transactionPage - 1) * transactionsPerPage;
   const recent = newestFirst.slice(pageStart, pageStart + transactionsPerPage);
-  list.innerHTML = recent.map(x => { const note = x.note ? escapeHTML(x.note) : 'No note added'; const schedule = x.recurring ? `<small class="recurrence-badge">↻ ${x.recurrence === 'custom' ? 'Custom cycle' : x.recurrence}</small>` : x.paymentNumber ? `<small class="payment-badge">Payment ${x.paymentNumber}/${x.paymentCount}</small>` : ''; return `<div class="transaction-row"><label class="transaction-selector"><input class="transaction-select" data-id="${x.id}" type="checkbox" aria-label="Select ${x.description}" ${selectedTransactionIds.has(x.id) ? 'checked' : ''} /></label><div class="transaction-name">${icon(x.category)}<span>${x.description}${schedule}</span></div><span class="transaction-category">${x.category}</span><span class="transaction-note" tabindex="0"><span class="transaction-note-preview">${x.note ? note : '—'}</span><span class="transaction-note-detail" role="tooltip">${note}</span></span><span class="transaction-date">${dateLabel(x.date)}</span><span class="transaction-amount ${x.type}">${x.type === 'income' ? '+' : '−'}${money(x.amount)} <button class="edit-transaction" data-id="${x.id}" aria-label="Edit ${x.description}">✎</button><button class="delete-transaction" data-id="${x.id}" aria-label="Delete ${x.description}">×</button></span></div>`; }).join('');
+  list.innerHTML = recent.map(x => { const note = x.note ? escapeHTML(x.note) : 'No note added'; const schedule = x.recurring ? `<small class="recurrence-badge">↻ ${x.recurrence === 'custom' ? 'Custom cycle' : x.recurrence}</small>` : x.paymentNumber ? `<small class="payment-badge">Recurring ${x.paymentNumber}/${x.paymentCount}</small>` : ''; return `<div class="transaction-row"><label class="transaction-selector"><input class="transaction-select" data-id="${x.id}" type="checkbox" aria-label="Select ${x.description}" ${selectedTransactionIds.has(x.id) ? 'checked' : ''} /></label><div class="transaction-name">${icon(x.category)}<span>${x.description}${schedule}</span></div><span class="transaction-category">${x.category}</span><span class="transaction-note" tabindex="0"><span class="transaction-note-preview">${x.note ? note : '—'}</span><span class="transaction-note-detail" role="tooltip">${note}</span></span><span class="transaction-date">${dateLabel(x.date)}</span><span class="transaction-amount ${x.type}">${x.type === 'income' ? '+' : '−'}${money(x.amount)} <button class="edit-transaction" data-id="${x.id}" aria-label="Edit ${x.description}">✎</button><button class="delete-transaction" data-id="${x.id}" aria-label="Delete ${x.description}">×</button></span></div>`; }).join('');
   list.classList.toggle('has-transactions', Boolean(recent.length));
   list.classList.remove('page-enter-next', 'page-enter-previous');
   if (transactionPageAnimation) {
@@ -293,11 +293,11 @@ function renderTransactions(transactions) {
   }));
 }
 
-function openRecurringDeleteModal(transaction) {
+function openRecurringDeleteModal(transaction, selectCurrent = true) {
   activeRecurringDeleteGroupId = transaction.recurrenceGroupId;
   const payments = data.oneOffTransactions.filter(entry => entry.recurrenceGroupId === activeRecurringDeleteGroupId).sort((a, b) => a.paymentNumber - b.paymentNumber);
-  $('#recurringDeleteList').innerHTML = payments.map(entry => `<label class="recurring-delete-item"><input type="checkbox" name="payment" value="${entry.id}" ${entry.id === transaction.id ? 'checked' : ''} /><span><strong>Payment ${entry.paymentNumber}/${entry.paymentCount}</strong><small>${dateLabel(entry.date)} · ${entry.type === 'income' ? '+' : '−'}${money(entry.amount)}</small></span></label>`).join('');
-  $('#deleteRecurringPayments').textContent = 'Delete selected payment';
+  $('#recurringDeleteList').innerHTML = payments.map(entry => `<label class="recurring-delete-item"><input type="checkbox" name="payment" value="${entry.id}" ${selectCurrent && entry.id === transaction.id ? 'checked' : ''} /><span><strong>Transaction ${entry.paymentNumber}/${entry.paymentCount}</strong><small>${dateLabel(entry.date)} · ${entry.type === 'income' ? '+' : '−'}${money(entry.amount)}</small></span></label>`).join('');
+  $('#deleteRecurringPayments').textContent = 'Delete selected transactions';
   $('#recurringDeleteModal').showModal();
 }
 
@@ -380,12 +380,19 @@ function openTransactionModal(transaction = null) {
     editingPaymentGroupId = null;
   }
   updateRecurrenceFields();
+  $('#recurringManager').hidden = !editingPaymentGroupId;
   $('#transactionModal').showModal();
 }
 function openBudget() { $('#budgetForm [name="budget"]').value = data.budget; $('#budgetModal').showModal(); }
 function openBalanceModal() { $('#balanceForm [name="balance"]').value = currentBalance().toFixed(2); $('#balanceForm [name="note"]').value = ''; $('#balanceModal').showModal(); }
 
 $('#openTransactionModal').addEventListener('click', () => openTransactionModal());
+$('#manageRecurringTransactions').addEventListener('click', () => {
+  const transaction = paymentGroup(editingPaymentGroupId)[0];
+  if (!transaction) return;
+  $('#transactionModal').close();
+  openRecurringDeleteModal(transaction, false);
+});
 $('#transactionForm').addEventListener('submit', async (event) => {
   event.preventDefault(); const form = new FormData(event.target);
   const recurrence = form.get('recurrence');
@@ -547,6 +554,11 @@ $('#recurringDeleteForm').addEventListener('submit', async (event) => {
   const { error } = await db.from('transactions').delete().in('id', ids);
   if (error) { operationError(error); return; }
   data.oneOffTransactions = data.oneOffTransactions.filter(entry => !ids.includes(entry.id));
+  const remaining = paymentGroup(activeRecurringDeleteGroupId);
+  const renumber = await Promise.all(remaining.map((entry, index) => db.from('transactions').update({ recurrence_index: index + 1, recurrence_count: remaining.length }).eq('id', entry.id)));
+  const renumberError = renumber.find(result => result.error)?.error;
+  if (renumberError) { operationError(renumberError); return; }
+  data.oneOffTransactions = data.oneOffTransactions.map(entry => entry.recurrenceGroupId === activeRecurringDeleteGroupId ? { ...entry, paymentNumber: remaining.findIndex(item => item.id === entry.id) + 1, paymentCount: remaining.length } : entry);
   selectedTransactionIds.clear(); activeRecurringDeleteGroupId = null; refreshScheduledTransactions(); $('#recurringDeleteModal').close(); render();
 });
 

@@ -150,6 +150,10 @@
         <label>Repeat<select name="recurrence" id="recurrenceInput"><option value="once">Does not repeat</option><option value="daily">Daily</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option><option value="custom">Custom cycle</option></select></label>
         <label id="recurrenceEndField" hidden>Ends on <span class="optional-label">(optional)</span><input name="recurrenceEnd" type="date" /></label>
         <div class="custom-cycle" id="customCycleFields" hidden><div class="form-row"><label>Cycle starts<input name="cycleStart" type="date" /></label><label>Cycle ends<input name="cycleEnd" type="date" /></label></div><p class="form-note">For example, 20 Sep to 18 Oct repeats every 28 days. The transaction is recorded on each cycle start.</p></div>
+        <section class="recurring-manager" id="recurringManager" hidden>
+          <div><strong>Recurring transactions</strong><p>Remove selected transactions from this series without changing the others.</p></div>
+          <button type="button" id="manageRecurringTransactions">Select transactions to delete</button>
+        </section>
         <button class="submit-transaction" id="transactionSubmit" type="submit">Save transaction</button>
       </form>
     </dialog>
@@ -173,10 +177,10 @@
     </dialog>
     <dialog id="recurringDeleteModal">
       <form method="dialog" id="recurringDeleteForm">
-        <div class="modal-header"><div><p class="section-kicker">RECURRING PAYMENTS</p><h2>Choose payments to delete</h2></div><button class="close-modal" type="button" data-close="recurringDeleteModal" aria-label="Close">×</button></div>
-        <p class="form-note">Select the payments you want to remove. Unselected payments will remain.</p>
+        <div class="modal-header"><div><p class="section-kicker">RECURRING TRANSACTIONS</p><h2>Choose transactions to delete</h2></div><button class="close-modal" type="button" data-close="recurringDeleteModal" aria-label="Close">×</button></div>
+        <p class="form-note">Select the transactions you want to remove. Unselected transactions will remain.</p>
         <div class="recurring-delete-list" id="recurringDeleteList"></div>
-        <button class="bulk-delete" id="deleteRecurringPayments" type="submit">Delete selected payments</button>
+        <button class="bulk-delete" id="deleteRecurringPayments" type="submit">Delete selected transactions</button>
       </form>
     </dialog>
     <dialog class="auth-modal" id="authModal">
