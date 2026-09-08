@@ -173,6 +173,7 @@ function render() {
   const usedCapped = Math.min(used, 100);
   const monthName = new Intl.DateTimeFormat('en-SG', { month: 'long', year: 'numeric' }).format(currentDate);
   $('#monthLabel').textContent = monthName;
+  $('#monthPicker').value = monthKey(currentDate);
   $('#greeting').textContent = `${new Intl.DateTimeFormat('en-SG', { month: 'long' }).format(currentDate).toUpperCase()} AT A GLANCE`;
   $('#balanceValue').textContent = money(balance);
   const latestAdjustment = data.balanceAdjustments.at(-1);
@@ -435,8 +436,11 @@ $('#balanceForm').addEventListener('submit', async (event) => {
   data.balanceAdjustments.push(adjustmentFromRow(row)); $('#balanceModal').close(); render();
 });
 document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => $(`#${button.dataset.close}`).close()));
-$('#previousMonth').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); transactionPage = 1; selectedTransactionIds.clear(); render(); });
-$('#nextMonth').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); transactionPage = 1; selectedTransactionIds.clear(); render(); });
+function selectMonth(year, monthIndex) { currentDate = new Date(year, monthIndex, 1); transactionPage = 1; selectedTransactionIds.clear(); render(); }
+$('#previousMonth').addEventListener('click', () => selectMonth(currentDate.getFullYear(), currentDate.getMonth() - 1));
+$('#nextMonth').addEventListener('click', () => selectMonth(currentDate.getFullYear(), currentDate.getMonth() + 1));
+$('#monthLabel').addEventListener('click', () => { const picker = $('#monthPicker'); if (picker.showPicker) picker.showPicker(); else { picker.focus(); picker.click(); } });
+$('#monthPicker').addEventListener('change', (event) => { if (!/^\d{4}-\d{2}$/.test(event.target.value)) return; const [year, month] = event.target.value.split('-').map(Number); selectMonth(year, month - 1); });
 $('#menuButton').addEventListener('click', () => $('.sidebar').classList.toggle('open'));
 function installPageNavigation() {
   document.querySelectorAll('.brand, .nav a, .profile-menu a').forEach(link => link.addEventListener('click', (event) => {
