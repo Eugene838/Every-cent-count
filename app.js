@@ -46,12 +46,27 @@ function plusDays(date, amount) { const next = new Date(date); next.setDate(next
 const escapeHTML = (value) => String(value).replace(/[&<>'"]/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[character]);
 const dateLabel = (date) => new Intl.DateTimeFormat('en-SG', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(`${date}T00:00:00`));
 const getMonthTransactions = () => data.transactions.filter((entry) => entry.date.startsWith(monthKey(currentDate)));
-const currentBalance = () => data.transactions.reduce((total, entry) => total + (entry.type === 'income' ? entry.amount : -entry.amount), 0) + data.balanceAdjustments.reduce((total, entry) => total + entry.amount, 0);
+const currentBalance = () => { const today = dateKey(new Date()); return data.transactions.filter(entry => entry.date <= today).reduce((total, entry) => total + (entry.type === 'income' ? entry.amount : -entry.amount), 0) + data.balanceAdjustments.reduce((total, entry) => total + entry.amount, 0); };
 const icon = (category) => { const item = categoryInfo[category] || categoryInfo.Other; return `<span class="category-icon" style="background:${item.color}">${item.icon}</span>`; };
 const transactionFromRow = (row) => ({ id: row.id, description: row.description, note: row.note || '', category: row.category, amount: Number(row.amount), type: row.type, date: row.transaction_date, createdAt: row.created_at, recurring: false });
 const recurringFromRow = (row) => ({ id: row.id, description: row.description, note: row.note || '', category: row.category, amount: Number(row.amount), type: row.type, recurrence: row.recurrence, startDate: row.start_date, endDate: row.end_date, cycleEndDate: row.cycle_end_date, createdAt: row.created_at });
 const addMonths = (date, count) => { const next = new Date(date.getFullYear(), date.getMonth() + count, 1); next.setDate(Math.min(date.getDate(), new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate())); return next; };
 const recurrenceLabel = (entry) => entry.recurrence === 'custom' ? `Custom · ${dateLabel(entry.startDate)}–${dateLabel(entry.cycleEndDate)}` : entry.recurrence[0].toUpperCase() + entry.recurrence.slice(1);
+function occurrenceDates(recurrence, startKey, endKey, cycleEndKey) {
+  const start = new Date(`${startKey}T00:00:00`); const end = new Date(`${endKey}T00:00:00`); const dates = [];
+  const customDays = cycleEndKey ? Math.max(1, Math.round((new Date(`${cycleEndKey}T00:00:00`) - start) / 86400000)) : 1;
+  for (let index = 0; index < 1000; index += 1) {
+    let date;
+    if (recurrence === 'daily') date = plusDays(start, index);
+    else if (recurrence === 'monthly') date = addMonths(start, index);
+    else if (recurrence === 'quarterly') date = addMonths(start, index * 3);
+    else if (recurrence === 'yearly') date = addMonths(start, index * 12);
+    else date = plusDays(start, index * customDays);
+    if (date > end) break;
+    dates.push(dateKey(date));
+  }
+  return dates;
+}
 function scheduledTransactions() {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const earliest = new Date(today.getFullYear() - 10, 0, 1);
@@ -344,8 +359,21 @@ $('#transactionForm').addEventListener('submit', async (event) => {
   }
   const transactionValues = { description: form.get('description').trim(), note: form.get('note').trim() || null, category: form.get('category'), amount: Number(form.get('amount')), type: selectedType, transaction_date: form.get('date') };
   const recurringValues = { description: form.get('description').trim(), note: form.get('note').trim() || null, category: form.get('category'), amount: Number(form.get('amount')), type: selectedType, recurrence, start_date: startDate, end_date: form.get('recurrenceEnd') || null, cycle_end_date: recurrence === 'custom' ? form.get('cycleEnd') : null, updated_at: new Date().toISOString() };
+  const finiteSchedule = recurrence !== 'once' && Boolean(form.get('recurrenceEnd'));
   let result;
-  if (recurrence === 'once' && editingRecurringId) {
+  if (finiteSchedule) {
+    const dates = occurrenceDates(recurrence, startDate, form.get('recurrenceEnd'), recurrence === 'custom' ? form.get('cycleEnd') : null);
+    if (!dates.length) { window.alert('No transaction dates fall within this schedule.'); return; }
+    if (editingRecurringId) {
+      const removal = await db.from('recurring_transactions').delete().eq('id', editingRecurringId);
+      if (removal.error) { operationError(removal.error); return; }
+    }
+    if (editingTransactionId) {
+      const removal = await db.from('transactions').delete().eq('id', editingTransactionId);
+      if (removal.error) { operationError(removal.error); return; }
+    }
+    result = await db.from('transactions').insert(dates.map(transaction_date => ({ user_id: user.id, ...transactionValues, transaction_date }))).select();
+  } else if (recurrence === 'once' && editingRecurringId) {
     const removal = await db.from('recurring_transactions').delete().eq('id', editingRecurringId);
     if (removal.error) { operationError(removal.error); return; }
     result = await db.from('transactions').insert({ user_id: user.id, ...transactionValues }).select().single();
@@ -356,7 +384,12 @@ $('#transactionForm').addEventListener('submit', async (event) => {
     : await db.from('transactions').insert({ user_id: user.id, ...transactionValues }).select().single();
   const { data: row, error } = result;
   if (error) { operationError(error); return; }
-  if (recurrence !== 'once') {
+  if (finiteSchedule) {
+    if (editingRecurringId) data.recurringTransactions = data.recurringTransactions.filter(x => x.id !== editingRecurringId);
+    if (editingTransactionId) data.oneOffTransactions = data.oneOffTransactions.filter(x => x.id !== editingTransactionId);
+    data.oneOffTransactions.push(...row.map(transactionFromRow));
+    transactionPage = 1;
+  } else if (recurrence !== 'once') {
     const updated = recurringFromRow(row);
     if (editingRecurringId) data.recurringTransactions = data.recurringTransactions.map(x => x.id === editingRecurringId ? updated : x);
     else data.recurringTransactions.push(updated);
