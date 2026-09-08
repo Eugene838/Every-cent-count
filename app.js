@@ -16,6 +16,9 @@ let authMode = 'signin';
 let user = null;
 let transactionPage = 1;
 let transactionPageAnimation = null;
+let editingTransactionId = null;
+let sessionRecoveryInProgress = false;
+const selectedTransactionIds = new Set();
 const transactionsPerPage = 5;
 
 const $ = (selector) => document.querySelector(selector);
@@ -29,8 +32,40 @@ const icon = (category) => { const item = categoryInfo[category] || categoryInfo
 const transactionFromRow = (row) => ({ id: row.id, description: row.description, category: row.category, amount: Number(row.amount), type: row.type, date: row.transaction_date, createdAt: row.created_at });
 const adjustmentFromRow = (row) => ({ id: row.id, amount: Number(row.amount), previousBalance: Number(row.previous_balance), newBalance: Number(row.new_balance), note: row.note, date: row.adjustment_date, createdAt: row.created_at });
 
+const isFutureJwtError = (error) => /jwt issued at future/i.test(error?.message || '');
+
+async function recoverFutureJwtSession() {
+  if (sessionRecoveryInProgress) return;
+  sessionRecoveryInProgress = true;
+  const recoveryKey = 'everyCentFutureJwtRecoveryAt';
+  const lastAttempt = Number(sessionStorage.getItem(recoveryKey) || 0);
+  if (Date.now() - lastAttempt < 15000) {
+    await db.auth.signOut({ scope: 'local' });
+    sessionStorage.setItem('everyCentAuthNotice', 'Your secure session was reset. Please sign in again to continue.');
+    window.location.replace('signin.html');
+    return;
+  }
+  sessionStorage.setItem(recoveryKey, String(Date.now()));
+  try {
+    const { data, error } = await db.auth.refreshSession();
+    if (!error && data.session) {
+      window.setTimeout(() => window.location.reload(), 1200);
+      return;
+    }
+  } catch (refreshError) {
+    console.error(refreshError);
+  }
+  await db.auth.signOut({ scope: 'local' });
+  sessionStorage.setItem('everyCentAuthNotice', 'Your secure session was reset. Please sign in again to continue.');
+  window.location.replace('signin.html');
+}
+
 function operationError(error) {
   console.error(error);
+  if (isFutureJwtError(error)) {
+    recoverFutureJwtSession();
+    return;
+  }
   window.alert(`Could not save your change. ${error.message || 'Please try again.'}`);
 }
 
@@ -73,7 +108,21 @@ function render() {
   $('#editBudget').textContent = data.budget ? 'Edit budget' : 'Set budget';
   $('#budgetProgress').style.width = `${usedCapped}%`;
   $('#budgetDonut').style.background = `conic-gradient(${spending > data.budget ? '#c26e68' : 'var(--green)'} 0deg ${usedCapped * 3.6}deg, #e5eee8 ${usedCapped * 3.6}deg 360deg)`;
-  renderCategories(transactions); renderTransactions(data.transactions); renderChart(transactions); renderInsight(spending, income, used); renderBalanceHistory();
+  renderCategories(transactions); renderTransactions(data.transactions); renderChart(transactions); renderInsight(spending, income, used); renderBalanceHistory(); renderDescriptionSuggestions();
+}
+
+function renderDescriptionSuggestions() {
+  const suggestions = $('#transactionDescriptionSuggestions');
+  const uniqueDescriptions = [...data.transactions]
+    .sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || '').localeCompare(a.createdAt || ''))
+    .map(x => x.description.trim())
+    .filter((description, index, all) => description && all.indexOf(description) === index)
+    .slice(0, 30);
+  suggestions.replaceChildren(...uniqueDescriptions.map(description => {
+    const option = document.createElement('option');
+    option.value = description;
+    return option;
+  }));
 }
 
 function renderCategories(transactions) {
@@ -95,7 +144,7 @@ function renderTransactions(transactions) {
   transactionPage = Math.min(transactionPage, totalPages);
   const pageStart = (transactionPage - 1) * transactionsPerPage;
   const recent = newestFirst.slice(pageStart, pageStart + transactionsPerPage);
-  list.innerHTML = recent.map(x => `<div class="transaction-row"><div class="transaction-name">${icon(x.category)}<span>${x.description}</span></div><span class="transaction-category">${x.category}</span><span class="transaction-date">${dateLabel(x.date)}</span><span class="transaction-amount ${x.type}">${x.type === 'income' ? '+' : '−'}${money(x.amount)} <button class="delete-transaction" data-id="${x.id}" aria-label="Delete ${x.description}">×</button></span></div>`).join('');
+  list.innerHTML = recent.map(x => `<div class="transaction-row"><label class="transaction-selector"><input class="transaction-select" data-id="${x.id}" type="checkbox" aria-label="Select ${x.description}" ${selectedTransactionIds.has(x.id) ? 'checked' : ''} /></label><div class="transaction-name">${icon(x.category)}<span>${x.description}</span></div><span class="transaction-category">${x.category}</span><span class="transaction-date">${dateLabel(x.date)}</span><span class="transaction-amount ${x.type}">${x.type === 'income' ? '+' : '−'}${money(x.amount)} <button class="edit-transaction" data-id="${x.id}" aria-label="Edit ${x.description}">✎</button><button class="delete-transaction" data-id="${x.id}" aria-label="Delete ${x.description}">×</button></span></div>`).join('');
   list.classList.toggle('has-transactions', Boolean(recent.length));
   list.classList.remove('page-enter-next', 'page-enter-previous');
   if (transactionPageAnimation) {
@@ -108,9 +157,25 @@ function renderTransactions(transactions) {
   $('#transactionPageStatus').textContent = `Page ${transactionPage} of ${totalPages}`;
   $('#previousTransactionPage').disabled = transactionPage === 1;
   $('#nextTransactionPage').disabled = transactionPage === totalPages;
+  const selectAll = $('#selectAllTransactions');
+  selectAll.checked = Boolean(recent.length) && recent.every(x => selectedTransactionIds.has(x.id));
+  selectAll.indeterminate = recent.some(x => selectedTransactionIds.has(x.id)) && !selectAll.checked;
+  selectAll.disabled = !recent.length;
+  $('#bulkActions').hidden = selectedTransactionIds.size === 0;
+  $('#selectedTransactionCount').textContent = `${selectedTransactionIds.size} selected`;
+  list.querySelectorAll('.transaction-select').forEach(input => input.addEventListener('change', () => {
+    if (input.checked) selectedTransactionIds.add(input.dataset.id);
+    else selectedTransactionIds.delete(input.dataset.id);
+    renderTransactions(data.transactions);
+  }));
+  list.querySelectorAll('.edit-transaction').forEach(button => button.addEventListener('click', () => {
+    const transaction = data.transactions.find(x => x.id === button.dataset.id);
+    if (transaction) openTransactionModal(transaction);
+  }));
   list.querySelectorAll('.delete-transaction').forEach(button => button.addEventListener('click', async () => {
     const { error } = await db.from('transactions').delete().eq('id', button.dataset.id);
     if (error) { operationError(error); return; }
+    selectedTransactionIds.delete(button.dataset.id);
     data.transactions = data.transactions.filter(x => x.id !== button.dataset.id);
     render();
   }));
@@ -145,17 +210,46 @@ function renderBalanceHistory() {
 }
 
 function updateCategoryOptions() { $('#categoryInput').innerHTML = (selectedType === 'income' ? incomeCategories : expenseCategories).map(x => `<option>${x}</option>`).join(''); }
+function setTransactionType(type) { selectedType = type; document.querySelectorAll('.type-choice').forEach(x => x.classList.toggle('active', x.dataset.type === type)); updateCategoryOptions(); }
+function openTransactionModal(transaction = null) {
+  editingTransactionId = transaction?.id || null;
+  const form = $('#transactionForm');
+  if (transaction) {
+    $('#transactionModalKicker').textContent = 'UPDATE ENTRY';
+    $('#transactionModalTitle').textContent = 'Edit transaction';
+    $('#transactionSubmit').textContent = 'Save changes';
+    setTransactionType(transaction.type);
+    form.elements.description.value = transaction.description;
+    form.elements.amount.value = transaction.amount;
+    form.elements.category.value = transaction.category;
+    form.elements.date.value = transaction.date;
+  } else {
+    $('#transactionModalKicker').textContent = 'NEW ENTRY';
+    $('#transactionModalTitle').textContent = 'Add transaction';
+    $('#transactionSubmit').textContent = 'Save transaction';
+    form.reset();
+    setTransactionType('expense');
+    form.elements.date.value = `${monthKey(currentDate)}-01`;
+  }
+  $('#transactionModal').showModal();
+}
 function openBudget() { $('#budgetForm [name="budget"]').value = data.budget; $('#budgetModal').showModal(); }
 function openBalanceModal() { $('#balanceForm [name="balance"]').value = currentBalance().toFixed(2); $('#balanceForm [name="note"]').value = ''; $('#balanceModal').showModal(); }
 
-$('#openTransactionModal').addEventListener('click', () => { $('#dateInput').value = `${monthKey(currentDate)}-01`; updateCategoryOptions(); $('#transactionModal').showModal(); });
+$('#openTransactionModal').addEventListener('click', () => openTransactionModal());
 $('#transactionForm').addEventListener('submit', async (event) => {
   event.preventDefault(); const form = new FormData(event.target);
-  const { data: row, error } = await db.from('transactions').insert({ user_id: user.id, description: form.get('description').trim(), category: form.get('category'), amount: Number(form.get('amount')), type: selectedType, transaction_date: form.get('date') }).select().single();
+  const transactionValues = { description: form.get('description').trim(), category: form.get('category'), amount: Number(form.get('amount')), type: selectedType, transaction_date: form.get('date') };
+  const result = editingTransactionId
+    ? await db.from('transactions').update(transactionValues).eq('id', editingTransactionId).select().single()
+    : await db.from('transactions').insert({ user_id: user.id, ...transactionValues }).select().single();
+  const { data: row, error } = result;
   if (error) { operationError(error); return; }
-  data.transactions.push(transactionFromRow(row)); transactionPage = 1; event.target.reset(); $('#transactionModal').close(); render();
+  if (editingTransactionId) data.transactions = data.transactions.map(x => x.id === editingTransactionId ? transactionFromRow(row) : x);
+  else { data.transactions.push(transactionFromRow(row)); transactionPage = 1; }
+  editingTransactionId = null; event.target.reset(); $('#transactionModal').close(); render();
 });
-document.querySelectorAll('.type-choice').forEach(button => button.addEventListener('click', () => { selectedType = button.dataset.type; document.querySelectorAll('.type-choice').forEach(x => x.classList.toggle('active', x === button)); updateCategoryOptions(); }));
+document.querySelectorAll('.type-choice').forEach(button => button.addEventListener('click', () => setTransactionType(button.dataset.type)));
 $('#editBudget').addEventListener('click', openBudget); $('#budgetButton').addEventListener('click', openBudget);
 $('#budgetForm').addEventListener('submit', async (event) => {
   event.preventDefault(); const amount = Number(new FormData(event.target).get('budget'));
@@ -176,6 +270,22 @@ $('#nextMonth').addEventListener('click', () => { currentDate.setMonth(currentDa
 $('#menuButton').addEventListener('click', () => $('.sidebar').classList.toggle('open'));
 $('#previousTransactionPage').addEventListener('click', () => { transactionPageAnimation = 'previous'; transactionPage -= 1; render(); });
 $('#nextTransactionPage').addEventListener('click', () => { transactionPageAnimation = 'next'; transactionPage += 1; render(); });
+$('#selectAllTransactions').addEventListener('change', (event) => {
+  const newestFirst = [...data.transactions].sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const currentPage = newestFirst.slice((transactionPage - 1) * transactionsPerPage, transactionPage * transactionsPerPage);
+  currentPage.forEach(transaction => event.target.checked ? selectedTransactionIds.add(transaction.id) : selectedTransactionIds.delete(transaction.id));
+  renderTransactions(data.transactions);
+});
+$('#clearTransactionSelection').addEventListener('click', () => { selectedTransactionIds.clear(); renderTransactions(data.transactions); });
+$('#bulkDeleteTransactions').addEventListener('click', async () => {
+  const ids = [...selectedTransactionIds];
+  if (!ids.length || !window.confirm(`Delete ${ids.length} selected transaction${ids.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
+  const { error } = await db.from('transactions').delete().in('id', ids);
+  if (error) { operationError(error); return; }
+  data.transactions = data.transactions.filter(transaction => !selectedTransactionIds.has(transaction.id));
+  selectedTransactionIds.clear();
+  render();
+});
 
 function setAuthMode(mode) {
   authMode = mode;

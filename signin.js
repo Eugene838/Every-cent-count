@@ -19,6 +19,11 @@ function showExistingAccountMessage() {
 }
 
 authMode = document.body.dataset.mode || 'signin';
+const authNotice = sessionStorage.getItem('everyCentAuthNotice');
+if (authNotice) {
+  $('#authMessage').textContent = authNotice;
+  sessionStorage.removeItem('everyCentAuthNotice');
+}
 $('#authForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   if (!db) {
