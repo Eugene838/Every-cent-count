@@ -18,6 +18,7 @@ let transactionPage = 1;
 let transactionPageAnimation = null;
 let editingTransactionId = null;
 let sessionRecoveryInProgress = false;
+let bulkEditMode = false;
 const selectedTransactionIds = new Set();
 const transactionsPerPage = 5;
 
@@ -25,6 +26,7 @@ const $ = (selector) => document.querySelector(selector);
 const money = (amount) => new Intl.NumberFormat('en-SG', { style: 'currency', currency: 'SGD', minimumFractionDigits: 2 }).format(amount);
 const shortMoney = (amount) => new Intl.NumberFormat('en-SG', { style: 'currency', currency: 'SGD', maximumFractionDigits: 0 }).format(amount);
 const monthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+const dateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const dateLabel = (date) => new Intl.DateTimeFormat('en-SG', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(`${date}T00:00:00`));
 const getMonthTransactions = () => data.transactions.filter((entry) => entry.date.startsWith(monthKey(currentDate)));
 const currentBalance = () => data.transactions.reduce((total, entry) => total + (entry.type === 'income' ? entry.amount : -entry.amount), 0) + data.balanceAdjustments.reduce((total, entry) => total + entry.amount, 0);
@@ -139,6 +141,8 @@ function renderCategories(transactions) {
 
 function renderTransactions(transactions) {
   const list = $('#transactionList');
+  $('#transactions').classList.toggle('bulk-editing', bulkEditMode);
+  $('#toggleBulkEdit').textContent = bulkEditMode ? 'Done' : 'Edit';
   const newestFirst = [...transactions].sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || '').localeCompare(a.createdAt || ''));
   const totalPages = Math.max(1, Math.ceil(newestFirst.length / transactionsPerPage));
   transactionPage = Math.min(transactionPage, totalPages);
@@ -161,7 +165,7 @@ function renderTransactions(transactions) {
   selectAll.checked = Boolean(recent.length) && recent.every(x => selectedTransactionIds.has(x.id));
   selectAll.indeterminate = recent.some(x => selectedTransactionIds.has(x.id)) && !selectAll.checked;
   selectAll.disabled = !recent.length;
-  $('#bulkActions').hidden = selectedTransactionIds.size === 0;
+  $('#bulkActions').hidden = !bulkEditMode || selectedTransactionIds.size === 0;
   $('#selectedTransactionCount').textContent = `${selectedTransactionIds.size} selected`;
   list.querySelectorAll('.transaction-select').forEach(input => input.addEventListener('change', () => {
     if (input.checked) selectedTransactionIds.add(input.dataset.id);
@@ -229,7 +233,7 @@ function openTransactionModal(transaction = null) {
     $('#transactionSubmit').textContent = 'Save transaction';
     form.reset();
     setTransactionType('expense');
-    form.elements.date.value = `${monthKey(currentDate)}-01`;
+    form.elements.date.value = dateKey(new Date());
   }
   $('#transactionModal').showModal();
 }
@@ -270,6 +274,11 @@ $('#nextMonth').addEventListener('click', () => { currentDate.setMonth(currentDa
 $('#menuButton').addEventListener('click', () => $('.sidebar').classList.toggle('open'));
 $('#previousTransactionPage').addEventListener('click', () => { transactionPageAnimation = 'previous'; transactionPage -= 1; render(); });
 $('#nextTransactionPage').addEventListener('click', () => { transactionPageAnimation = 'next'; transactionPage += 1; render(); });
+$('#toggleBulkEdit').addEventListener('click', () => {
+  bulkEditMode = !bulkEditMode;
+  if (!bulkEditMode) selectedTransactionIds.clear();
+  renderTransactions(data.transactions);
+});
 $('#selectAllTransactions').addEventListener('change', (event) => {
   const newestFirst = [...data.transactions].sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || '').localeCompare(a.createdAt || ''));
   const currentPage = newestFirst.slice((transactionPage - 1) * transactionsPerPage, transactionPage * transactionsPerPage);
