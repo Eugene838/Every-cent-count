@@ -3,6 +3,11 @@ const $ = (selector) => document.querySelector(selector);
 let currentUser = null;
 const messageTimers = new Map();
 const wait = (milliseconds) => new Promise(resolve => window.setTimeout(resolve, milliseconds));
+const passwordVerifier = window.supabase.createClient(
+  'https://jipiurqxddchjtwlmltf.supabase.co',
+  'sb_publishable_FW1xMNmOPK2EvX6N-fZZSw_DRUUJDUr',
+  { auth: { autoRefreshToken: false, detectSessionInUrl: false, persistSession: false } }
+);
 
 const displayNameFor = (account) => account?.user_metadata?.username?.trim() || account?.email?.split('@')[0] || 'My profile';
 const initialsFor = (name) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase() || 'EC';
@@ -67,14 +72,14 @@ $('#passwordForm').addEventListener('submit', async (event) => {
     .catch(error => ({ error, timedOut: false }));
   const updateResult = await Promise.race([
     updateRequest,
-    wait(5000).then(() => ({ timedOut: true }))
+    wait(2500).then(() => ({ timedOut: true }))
   ]);
   $('#savePassword').disabled = false;
   if (updateResult.timedOut) {
     let newPasswordVerified = null;
     for (let attempt = 0; attempt < 3 && !newPasswordVerified; attempt += 1) {
-      newPasswordVerified = await db.auth.signInWithPassword({ email: currentUser.email, password: newPassword });
-      if (newPasswordVerified.error && attempt < 2) await wait(2000);
+      newPasswordVerified = await passwordVerifier.auth.signInWithPassword({ email: currentUser.email, password: newPassword });
+      if (newPasswordVerified.error && attempt < 2) await wait(1000);
     }
     if (newPasswordVerified?.error) {
       showMessage('#passwordMessage', 'Password update is taking longer than expected. Please wait a moment, then try signing in with your new password.');
