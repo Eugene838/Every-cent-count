@@ -1,14 +1,23 @@
 const db = window.supabaseClient;
 const $ = (selector) => document.querySelector(selector);
 let currentUser = null;
+const messageTimers = new Map();
 
 const displayNameFor = (account) => account?.user_metadata?.username?.trim() || account?.email?.split('@')[0] || 'My profile';
 const initialsFor = (name) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase() || 'EC';
 
 function showMessage(selector, message, success = false) {
   const element = $(selector);
+  window.clearTimeout(messageTimers.get(selector));
   element.textContent = message;
   element.classList.toggle('success', success);
+  if (success) {
+    messageTimers.set(selector, window.setTimeout(() => {
+      element.textContent = '';
+      element.classList.remove('success');
+      messageTimers.delete(selector);
+    }, 5000));
+  }
 }
 
 function renderProfile(account) {
