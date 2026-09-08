@@ -30,6 +30,7 @@ let transactionPage = 1;
 let transactionPageAnimation = null;
 let editingTransactionId = null;
 let editingRecurringId = null;
+let editingPaymentGroupId = null;
 let activeRecurringDeleteGroupId = null;
 let sessionRecoveryInProgress = false;
 let bulkEditMode = false;
@@ -67,6 +68,19 @@ function occurrenceDates(recurrence, startKey, endKey, cycleEndKey) {
     dates.push(dateKey(date));
   }
   return dates;
+}
+function paymentGroup(groupId) { return data.oneOffTransactions.filter(entry => entry.recurrenceGroupId === groupId).sort((a, b) => a.date.localeCompare(b.date)); }
+function inferPaymentSchedule(payments) {
+  const start = new Date(`${payments[0].date}T00:00:00`);
+  const end = new Date(`${payments.at(-1).date}T00:00:00`);
+  const gapDays = payments.length > 1 ? Math.round((new Date(`${payments[1].date}T00:00:00`) - start) / 86400000) : 1;
+  const monthGap = payments.length > 1 ? ((new Date(`${payments[1].date}T00:00:00`).getFullYear() - start.getFullYear()) * 12) + new Date(`${payments[1].date}T00:00:00`).getMonth() - start.getMonth() : 0;
+  let recurrence = 'custom';
+  if (gapDays === 1) recurrence = 'daily';
+  else if (start.getDate() === new Date(`${payments[1]?.date || payments[0].date}T00:00:00`).getDate() && monthGap === 1) recurrence = 'monthly';
+  else if (start.getDate() === new Date(`${payments[1]?.date || payments[0].date}T00:00:00`).getDate() && monthGap === 3) recurrence = 'quarterly';
+  else if (start.getDate() === new Date(`${payments[1]?.date || payments[0].date}T00:00:00`).getDate() && monthGap === 12) recurrence = 'yearly';
+  return { recurrence, start: dateKey(start), end: dateKey(end), cycleEnd: dateKey(plusDays(start, gapDays)) };
 }
 function scheduledTransactions() {
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -336,6 +350,7 @@ function updateRecurrenceFields() {
 function openTransactionModal(transaction = null) {
   editingTransactionId = transaction?.recurring ? null : transaction?.id || null;
   editingRecurringId = transaction?.recurring ? transaction.recurringId : null;
+  editingPaymentGroupId = transaction?.recurrenceGroupId || null;
   const form = $('#transactionForm');
   if (transaction) {
     $('#transactionModalKicker').textContent = 'UPDATE ENTRY';
@@ -346,11 +361,13 @@ function openTransactionModal(transaction = null) {
     form.elements.note.value = transaction.note;
     form.elements.amount.value = transaction.amount;
     form.elements.category.value = transaction.category;
-    form.elements.date.value = transaction.recurring ? transaction.startDate : transaction.date;
-    form.elements.recurrence.value = transaction.recurring ? transaction.recurrence : 'once';
-    form.elements.cycleStart.value = transaction.recurring ? transaction.startDate : '';
-    form.elements.cycleEnd.value = transaction.recurring?.cycleEndDate || '';
-    form.elements.recurrenceEnd.value = transaction.recurring?.endDate || '';
+    const schedule = editingPaymentGroupId ? inferPaymentSchedule(paymentGroup(editingPaymentGroupId)) : null;
+    if (schedule) editingTransactionId = null;
+    form.elements.date.value = transaction.recurring ? transaction.startDate : schedule?.start || transaction.date;
+    form.elements.recurrence.value = transaction.recurring ? transaction.recurrence : schedule?.recurrence || 'once';
+    form.elements.cycleStart.value = transaction.recurring ? transaction.startDate : schedule?.start || '';
+    form.elements.cycleEnd.value = transaction.recurring?.cycleEndDate || schedule?.cycleEnd || '';
+    form.elements.recurrenceEnd.value = transaction.recurring?.endDate || schedule?.end || '';
   } else {
     $('#transactionModalKicker').textContent = 'NEW ENTRY';
     $('#transactionModalTitle').textContent = 'Add transaction';
@@ -360,6 +377,7 @@ function openTransactionModal(transaction = null) {
     form.elements.date.value = dateKey(new Date());
     form.elements.recurrence.value = 'once';
     form.elements.recurrenceEnd.value = '';
+    editingPaymentGroupId = null;
   }
   updateRecurrenceFields();
   $('#transactionModal').showModal();
@@ -393,8 +411,17 @@ $('#transactionForm').addEventListener('submit', async (event) => {
       const removal = await db.from('transactions').delete().eq('id', editingTransactionId);
       if (removal.error) { operationError(removal.error); return; }
     }
+    if (editingPaymentGroupId) {
+      const oldIds = paymentGroup(editingPaymentGroupId).map(entry => entry.id);
+      const removal = await db.from('transactions').delete().in('id', oldIds);
+      if (removal.error) { operationError(removal.error); return; }
+    }
     const recurrenceGroupId = crypto.randomUUID();
     result = await db.from('transactions').insert(dates.map((transaction_date, index) => ({ user_id: user.id, ...transactionValues, transaction_date, recurrence_group_id: recurrenceGroupId, recurrence_index: index + 1, recurrence_count: dates.length }))).select();
+  } else if (recurrence === 'once' && editingPaymentGroupId) {
+    const removal = await db.from('transactions').delete().in('id', paymentGroup(editingPaymentGroupId).map(entry => entry.id));
+    if (removal.error) { operationError(removal.error); return; }
+    result = await db.from('transactions').insert({ user_id: user.id, ...transactionValues }).select().single();
   } else if (recurrence === 'once' && editingRecurringId) {
     const removal = await db.from('recurring_transactions').delete().eq('id', editingRecurringId);
     if (removal.error) { operationError(removal.error); return; }
@@ -409,8 +436,12 @@ $('#transactionForm').addEventListener('submit', async (event) => {
   if (finiteSchedule) {
     if (editingRecurringId) data.recurringTransactions = data.recurringTransactions.filter(x => x.id !== editingRecurringId);
     if (editingTransactionId) data.oneOffTransactions = data.oneOffTransactions.filter(x => x.id !== editingTransactionId);
+    if (editingPaymentGroupId) data.oneOffTransactions = data.oneOffTransactions.filter(x => x.recurrenceGroupId !== editingPaymentGroupId);
     data.oneOffTransactions.push(...row.map(transactionFromRow));
     transactionPage = 1;
+  } else if (recurrence === 'once' && editingPaymentGroupId) {
+    data.oneOffTransactions = data.oneOffTransactions.filter(x => x.recurrenceGroupId !== editingPaymentGroupId);
+    data.oneOffTransactions.push(transactionFromRow(row));
   } else if (recurrence !== 'once') {
     const updated = recurringFromRow(row);
     if (editingRecurringId) data.recurringTransactions = data.recurringTransactions.map(x => x.id === editingRecurringId ? updated : x);
@@ -420,7 +451,7 @@ $('#transactionForm').addEventListener('submit', async (event) => {
     data.oneOffTransactions.push(transactionFromRow(row));
   } else if (editingTransactionId) data.oneOffTransactions = data.oneOffTransactions.map(x => x.id === editingTransactionId ? transactionFromRow(row) : x);
   else { data.oneOffTransactions.push(transactionFromRow(row)); transactionPage = 1; }
-  refreshScheduledTransactions(); editingTransactionId = null; editingRecurringId = null; event.target.reset(); $('#transactionModal').close(); render();
+  refreshScheduledTransactions(); editingTransactionId = null; editingRecurringId = null; editingPaymentGroupId = null; event.target.reset(); $('#transactionModal').close(); render();
 });
 document.querySelectorAll('.type-choice').forEach(button => button.addEventListener('click', () => setTransactionType(button.dataset.type)));
 $('#recurrenceInput').addEventListener('change', updateRecurrenceFields);
