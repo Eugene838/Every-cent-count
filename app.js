@@ -291,7 +291,7 @@ function setTransactionType(type) { selectedType = type; document.querySelectorA
 function updateRecurrenceFields() {
   const recurrence = $('#recurrenceInput').value;
   const custom = recurrence === 'custom';
-  const allowsEndDate = ['daily', 'monthly', 'quarterly', 'custom'].includes(recurrence);
+  const allowsEndDate = recurrence !== 'once';
   $('#recurrenceEndField').hidden = !allowsEndDate;
   $('#customCycleFields').hidden = !custom;
   $('#transactionForm').elements.cycleStart.required = custom;
