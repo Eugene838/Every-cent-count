@@ -15,6 +15,7 @@ let selectedType = 'expense';
 let authMode = 'signin';
 let user = null;
 let transactionPage = 1;
+let transactionPageAnimation = null;
 const transactionsPerPage = 5;
 
 const $ = (selector) => document.querySelector(selector);
@@ -90,6 +91,12 @@ function renderTransactions(transactions) {
   const pageStart = (transactionPage - 1) * transactionsPerPage;
   const recent = newestFirst.slice(pageStart, pageStart + transactionsPerPage);
   list.innerHTML = recent.map(x => `<div class="transaction-row"><div class="transaction-name">${icon(x.category)}<span>${x.description}</span></div><span class="transaction-category">${x.category}</span><span class="transaction-date">${dateLabel(x.date)}</span><span class="transaction-amount ${x.type}">${x.type === 'income' ? '+' : '−'}${money(x.amount)} <button class="delete-transaction" data-id="${x.id}" aria-label="Delete ${x.description}">×</button></span></div>`).join('');
+  list.classList.remove('page-enter-next', 'page-enter-previous');
+  if (transactionPageAnimation) {
+    void list.offsetWidth;
+    list.classList.add(`page-enter-${transactionPageAnimation}`);
+    transactionPageAnimation = null;
+  }
   $('#emptyState').hidden = Boolean(recent.length);
   $('#transactionPagination').hidden = newestFirst.length <= transactionsPerPage;
   $('#transactionPageStatus').textContent = `Page ${transactionPage} of ${totalPages}`;
@@ -155,8 +162,8 @@ document.querySelectorAll('[data-close]').forEach(button => button.addEventListe
 $('#previousMonth').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); render(); });
 $('#nextMonth').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); render(); });
 $('#menuButton').addEventListener('click', () => $('.sidebar').classList.toggle('open'));
-$('#previousTransactionPage').addEventListener('click', () => { transactionPage -= 1; render(); });
-$('#nextTransactionPage').addEventListener('click', () => { transactionPage += 1; render(); });
+$('#previousTransactionPage').addEventListener('click', () => { transactionPageAnimation = 'previous'; transactionPage -= 1; render(); });
+$('#nextTransactionPage').addEventListener('click', () => { transactionPageAnimation = 'next'; transactionPage += 1; render(); });
 
 function setAuthMode(mode) {
   authMode = mode;
