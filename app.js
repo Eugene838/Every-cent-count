@@ -30,6 +30,7 @@ let transactionPage = 1;
 let transactionPageAnimation = null;
 let editingTransactionId = null;
 let editingRecurringId = null;
+let activeRecurringDeleteGroupId = null;
 let sessionRecoveryInProgress = false;
 let bulkEditMode = false;
 let activityWeekStart = /^\d{4}-\d{2}-\d{2}$/.test(requestedWeek || '') ? startOfWeek(new Date(`${requestedWeek}T00:00:00`)) : startOfWeek(new Date());
@@ -48,7 +49,7 @@ const dateLabel = (date) => new Intl.DateTimeFormat('en-SG', { month: 'short', d
 const getMonthTransactions = () => data.transactions.filter((entry) => entry.date.startsWith(monthKey(currentDate)));
 const currentBalance = () => { const today = dateKey(new Date()); return data.transactions.filter(entry => entry.date <= today).reduce((total, entry) => total + (entry.type === 'income' ? entry.amount : -entry.amount), 0) + data.balanceAdjustments.reduce((total, entry) => total + entry.amount, 0); };
 const icon = (category) => { const item = categoryInfo[category] || categoryInfo.Other; return `<span class="category-icon" style="background:${item.color}">${item.icon}</span>`; };
-const transactionFromRow = (row) => ({ id: row.id, description: row.description, note: row.note || '', category: row.category, amount: Number(row.amount), type: row.type, date: row.transaction_date, createdAt: row.created_at, paymentNumber: row.recurrence_index || null, paymentCount: row.recurrence_count || null, recurring: false });
+const transactionFromRow = (row) => ({ id: row.id, description: row.description, note: row.note || '', category: row.category, amount: Number(row.amount), type: row.type, date: row.transaction_date, createdAt: row.created_at, recurrenceGroupId: row.recurrence_group_id || null, paymentNumber: row.recurrence_index || null, paymentCount: row.recurrence_count || null, recurring: false });
 const recurringFromRow = (row) => ({ id: row.id, description: row.description, note: row.note || '', category: row.category, amount: Number(row.amount), type: row.type, recurrence: row.recurrence, startDate: row.start_date, endDate: row.end_date, cycleEndDate: row.cycle_end_date, createdAt: row.created_at });
 const addMonths = (date, count) => { const next = new Date(date.getFullYear(), date.getMonth() + count, 1); next.setDate(Math.min(date.getDate(), new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate())); return next; };
 const recurrenceLabel = (entry) => entry.recurrence === 'custom' ? `Custom · ${dateLabel(entry.startDate)}–${dateLabel(entry.cycleEndDate)}` : entry.recurrence[0].toUpperCase() + entry.recurrence.slice(1);
@@ -265,6 +266,7 @@ function renderTransactions(transactions) {
   }));
   list.querySelectorAll('.delete-transaction').forEach(button => button.addEventListener('click', async () => {
     const transaction = data.transactions.find(x => x.id === button.dataset.id);
+    if (transaction?.recurrenceGroupId && transaction.paymentCount) { openRecurringDeleteModal(transaction); return; }
     const { error } = transaction?.recurring
       ? await db.from('recurring_transactions').delete().eq('id', transaction.recurringId)
       : await db.from('transactions').delete().eq('id', button.dataset.id);
@@ -275,6 +277,14 @@ function renderTransactions(transactions) {
     refreshScheduledTransactions();
     render();
   }));
+}
+
+function openRecurringDeleteModal(transaction) {
+  activeRecurringDeleteGroupId = transaction.recurrenceGroupId;
+  const payments = data.oneOffTransactions.filter(entry => entry.recurrenceGroupId === activeRecurringDeleteGroupId).sort((a, b) => a.paymentNumber - b.paymentNumber);
+  $('#recurringDeleteList').innerHTML = payments.map(entry => `<label class="recurring-delete-item"><input type="checkbox" name="payment" value="${entry.id}" ${entry.id === transaction.id ? 'checked' : ''} /><span><strong>Payment ${entry.paymentNumber}/${entry.paymentCount}</strong><small>${dateLabel(entry.date)} · ${entry.type === 'income' ? '+' : '−'}${money(entry.amount)}</small></span></label>`).join('');
+  $('#deleteRecurringPayments').textContent = 'Delete selected payment';
+  $('#recurringDeleteModal').showModal();
 }
 
 function renderChart(transactions) {
@@ -497,6 +507,16 @@ $('#bulkDeleteTransactions').addEventListener('click', async () => {
   refreshScheduledTransactions();
   selectedTransactionIds.clear();
   render();
+});
+
+$('#recurringDeleteForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const ids = [...new FormData(event.target).getAll('payment')];
+  if (!ids.length) { window.alert('Select at least one payment to delete.'); return; }
+  const { error } = await db.from('transactions').delete().in('id', ids);
+  if (error) { operationError(error); return; }
+  data.oneOffTransactions = data.oneOffTransactions.filter(entry => !ids.includes(entry.id));
+  selectedTransactionIds.clear(); activeRecurringDeleteGroupId = null; refreshScheduledTransactions(); $('#recurringDeleteModal').close(); render();
 });
 
 function setAuthMode(mode) {
