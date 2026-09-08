@@ -289,9 +289,10 @@ function renderBalanceHistory() {
 function updateCategoryOptions() { $('#categoryInput').innerHTML = (selectedType === 'income' ? incomeCategories : expenseCategories).map(x => `<option>${x}</option>`).join(''); }
 function setTransactionType(type) { selectedType = type; document.querySelectorAll('.type-choice').forEach(x => x.classList.toggle('active', x.dataset.type === type)); updateCategoryOptions(); }
 function updateRecurrenceFields() {
-  const recurring = $('#recurrenceInput').value !== 'once';
-  const custom = $('#recurrenceInput').value === 'custom';
-  $('#recurrenceEndField').hidden = !recurring;
+  const recurrence = $('#recurrenceInput').value;
+  const custom = recurrence === 'custom';
+  const allowsEndDate = ['daily', 'monthly', 'quarterly', 'custom'].includes(recurrence);
+  $('#recurrenceEndField').hidden = !allowsEndDate;
   $('#customCycleFields').hidden = !custom;
   $('#transactionForm').elements.cycleStart.required = custom;
   $('#transactionForm').elements.cycleEnd.required = custom;
