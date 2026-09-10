@@ -225,11 +225,28 @@ function renderDescriptionSuggestions() {
     .map(x => x.description.trim())
     .filter((description, index, all) => description && all.indexOf(description) === index)
     .slice(0, 30);
-  suggestions.replaceChildren(...uniqueDescriptions.map(description => {
-    const option = document.createElement('option');
-    option.value = description;
+  suggestions.dataset.descriptions = JSON.stringify(uniqueDescriptions);
+  suggestions.replaceChildren();
+}
+
+function updateDescriptionSuggestions() {
+  const input = $('#descriptionInput');
+  const suggestions = $('#transactionDescriptionSuggestions');
+  const descriptions = JSON.parse(suggestions.dataset.descriptions || '[]');
+  const query = input.value.trim().toLocaleLowerCase();
+  const matches = descriptions.filter(description => description.toLocaleLowerCase().includes(query) && description.toLocaleLowerCase() !== query).slice(0, 5);
+  suggestions.replaceChildren(...matches.map(description => {
+    const option = document.createElement('button');
+    option.type = 'button'; option.role = 'option'; option.textContent = description;
+    option.addEventListener('mousedown', (event) => event.preventDefault());
+    option.addEventListener('click', () => { input.value = description; suggestions.hidden = true; input.focus(); });
     return option;
   }));
+  suggestions.hidden = !matches.length;
+  if (!matches.length) return;
+  const viewportHeight = window.visualViewport?.height || window.innerHeight;
+  const inputBottom = input.getBoundingClientRect().bottom;
+  suggestions.classList.toggle('opens-upward', viewportHeight - inputBottom < 180);
 }
 
 function renderCategories(transactions) {
@@ -384,6 +401,9 @@ function openBudget() { $('#budgetForm [name="budget"]').value = data.budget; $(
 function openBalanceModal() { $('#balanceForm [name="balance"]').value = currentBalance().toFixed(2); $('#balanceForm [name="note"]').value = ''; $('#balanceModal').showModal(); }
 
 $('#openTransactionModal').addEventListener('click', () => openTransactionModal());
+$('#descriptionInput').addEventListener('input', updateDescriptionSuggestions);
+$('#descriptionInput').addEventListener('focus', updateDescriptionSuggestions);
+$('#descriptionInput').addEventListener('blur', () => setTimeout(() => { $('#transactionDescriptionSuggestions').hidden = true; }, 120));
 $('#manageRecurringTransactions').addEventListener('click', () => {
   const transaction = paymentGroup(editingPaymentGroupId)[0];
   if (!transaction) return;

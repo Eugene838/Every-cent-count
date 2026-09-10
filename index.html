@@ -142,8 +142,12 @@
       <form method="dialog" id="transactionForm">
         <div class="modal-header"><div><p class="section-kicker" id="transactionModalKicker">NEW ENTRY</p><h2 id="transactionModalTitle">Add transaction</h2></div><button class="close-modal" type="button" data-close="transactionModal" aria-label="Close">×</button></div>
         <div class="type-toggle"><button type="button" class="type-choice active" data-type="expense">Expense</button><button type="button" class="type-choice" data-type="income">Income</button></div>
-        <label>Description<input name="description" list="transactionDescriptionSuggestions" autocomplete="off" required placeholder="e.g. Morning groceries" /></label>
-        <datalist id="transactionDescriptionSuggestions"></datalist>
+        <label class="description-field">Description
+          <span class="description-input-wrap">
+            <input id="descriptionInput" name="description" autocomplete="off" required placeholder="e.g. Morning groceries" aria-autocomplete="list" aria-controls="transactionDescriptionSuggestions" />
+            <span class="description-suggestions" id="transactionDescriptionSuggestions" role="listbox" hidden></span>
+          </span>
+        </label>
         <label>Note<textarea name="note" maxlength="120" rows="3" placeholder="e.g. Dinner with family"></textarea></label>
         <div class="form-row"><label>Amount<input name="amount" type="number" min="0.01" step="0.01" required placeholder="0.00" /></label><label>Category<select name="category" id="categoryInput"></select></label></div>
         <label>Date<input name="date" id="dateInput" type="date" required /></label>
