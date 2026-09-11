@@ -60,6 +60,7 @@ function occurrenceDates(recurrence, startKey, endKey) {
     let date;
     if (recurrence === 'daily') date = plusDays(start, index);
     else if (recurrence === 'weekly') date = plusDays(start, index * 7);
+    else if (recurrence === 'biweekly') date = plusDays(start, index * 14);
     else if (recurrence === 'monthly') date = addMonths(start, index);
     else if (recurrence === 'quarterly') date = addMonths(start, index * 3);
     else if (recurrence === 'yearly') date = addMonths(start, index * 12);
@@ -78,6 +79,7 @@ function inferPaymentSchedule(payments) {
   let recurrence = 'weekly';
   if (gapDays === 1) recurrence = 'daily';
   else if (gapDays === 7) recurrence = 'weekly';
+  else if (gapDays === 14) recurrence = 'biweekly';
   else if (start.getDate() === new Date(`${payments[1]?.date || payments[0].date}T00:00:00`).getDate() && monthGap === 1) recurrence = 'monthly';
   else if (start.getDate() === new Date(`${payments[1]?.date || payments[0].date}T00:00:00`).getDate() && monthGap === 3) recurrence = 'quarterly';
   else if (start.getDate() === new Date(`${payments[1]?.date || payments[0].date}T00:00:00`).getDate() && monthGap === 12) recurrence = 'yearly';
@@ -97,6 +99,7 @@ function scheduledTransactions() {
       if (date >= earliest) occurrences.push({ ...template, id: `recurring:${template.id}:${dateKey(date)}`, date: dateKey(date), recurring: true, recurringId: template.id, createdAt: template.createdAt });
       if (template.recurrence === 'daily') date = plusDays(date, 1);
       else if (template.recurrence === 'weekly') date = plusDays(date, 7);
+      else if (template.recurrence === 'biweekly') date = plusDays(date, 14);
       else if (template.recurrence === 'monthly') date = addMonths(date, 1);
       else if (template.recurrence === 'quarterly') date = addMonths(date, 3);
       else if (template.recurrence === 'yearly') date = addMonths(date, 12);
