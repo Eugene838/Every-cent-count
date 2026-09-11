@@ -8,6 +8,7 @@ if (!demoMode) {
     'sb_publishable_FW1xMNmOPK2EvX6N-fZZSw_DRUUJDUr',
   );
 } else {
+  document.body.classList.add('demo-mode');
   const demoKey = 'everyCentCountsDemoData';
   const today = new Date();
   const dateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
