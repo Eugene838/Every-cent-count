@@ -2,5 +2,6 @@
 android/build/
 android/signing/
 dist/
+node_modules/
 .idea/
 *.iml

@@ -1,9 +1,5 @@
 {
-  "rewrites": [
-    { "source": "/home", "destination": "/index.html" },
-    { "source": "/demo", "destination": "/index.html" },
-    { "source": "/profile", "destination": "/profile.html" },
-    { "source": "/Yearly", "destination": "/yearly.html" },
-    { "source": "/yearly", "destination": "/yearly.html" }
-  ]
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
