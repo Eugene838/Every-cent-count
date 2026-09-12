@@ -24,6 +24,8 @@ function scheduledTransactions() {
     while (date <= lastOccurrence && safety++ < 1000) {
       if (date >= startLimit) entries.push({ amount: template.amount, type: template.type, date: dateKey(date) });
       if (template.recurrence === 'daily') date = plusDays(date, 1);
+      else if (template.recurrence === 'weekly') date = plusDays(date, 7);
+      else if (template.recurrence === 'biweekly') date = plusDays(date, 14);
       else if (template.recurrence === 'monthly') date = addMonths(date, 1);
       else if (template.recurrence === 'quarterly') date = addMonths(date, 3);
       else if (template.recurrence === 'yearly') date = addMonths(date, 12);
