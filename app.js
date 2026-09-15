@@ -43,20 +43,21 @@ const money = (amount) => new Intl.NumberFormat('en-SG', { style: 'currency', cu
 const shortMoney = (amount) => new Intl.NumberFormat('en-SG', { style: 'currency', currency: 'SGD', maximumFractionDigits: 0 }).format(amount);
 const monthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 const dateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+const timeKey = (date = new Date()) => `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 function startOfWeek(date) { const start = new Date(date.getFullYear(), date.getMonth(), date.getDate()); start.setDate(start.getDate() - ((start.getDay() + 6) % 7)); return start; }
 function plusDays(date, amount) { const next = new Date(date); next.setDate(next.getDate() + amount); return next; }
 const escapeHTML = (value) => String(value).replace(/[&<>'"]/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[character]);
 const dateLabel = (date) => new Intl.DateTimeFormat('en-SG', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(`${date}T00:00:00`));
-const timeLabel = (timestamp) => {
-  if (!timestamp) return '';
-  const date = new Date(timestamp);
-  return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat('en-SG', { hour: 'numeric', minute: '2-digit' }).format(date);
+const timeLabel = (value) => {
+  if (!/^\d{2}:\d{2}/.test(value || '')) return '';
+  const [hours, minutes] = value.slice(0, 5).split(':').map(Number);
+  return new Intl.DateTimeFormat('en-SG', { hour: 'numeric', minute: '2-digit' }).format(new Date(2000, 0, 1, hours, minutes));
 };
 const getMonthTransactions = () => data.transactions.filter((entry) => entry.date.startsWith(monthKey(currentDate)));
 const currentBalance = () => { const today = dateKey(new Date()); return data.transactions.filter(entry => entry.date <= today).reduce((total, entry) => total + (entry.type === 'income' ? entry.amount : -entry.amount), 0) + data.balanceAdjustments.reduce((total, entry) => total + entry.amount, 0); };
 const icon = (category) => { const item = categoryInfo[category] || categoryInfo.Other; return `<span class="category-icon" style="background:${item.color}">${item.icon}</span>`; };
-const transactionFromRow = (row) => ({ id: row.id, description: row.description, note: row.note || '', category: row.category, amount: Number(row.amount), type: row.type, date: row.transaction_date, createdAt: row.created_at, recurrenceGroupId: row.recurrence_group_id || null, paymentNumber: row.recurrence_index || null, paymentCount: row.recurrence_count || null, recurring: false });
-const recurringFromRow = (row) => ({ id: row.id, description: row.description, note: row.note || '', category: row.category, amount: Number(row.amount), type: row.type, recurrence: row.recurrence, startDate: row.start_date, endDate: row.end_date, cycleEndDate: row.cycle_end_date, createdAt: row.created_at });
+const transactionFromRow = (row) => ({ id: row.id, description: row.description, note: row.note || '', category: row.category, amount: Number(row.amount), type: row.type, date: row.transaction_date, transactionTime: row.transaction_time || '', createdAt: row.created_at, recurrenceGroupId: row.recurrence_group_id || null, paymentNumber: row.recurrence_index || null, paymentCount: row.recurrence_count || null, recurring: false });
+const recurringFromRow = (row) => ({ id: row.id, description: row.description, note: row.note || '', category: row.category, amount: Number(row.amount), type: row.type, recurrence: row.recurrence, startDate: row.start_date, endDate: row.end_date, cycleEndDate: row.cycle_end_date, transactionTime: row.transaction_time || '', createdAt: row.created_at });
 const addMonths = (date, count) => { const next = new Date(date.getFullYear(), date.getMonth() + count, 1); next.setDate(Math.min(date.getDate(), new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate())); return next; };
 const recurrenceLabel = (entry) => entry.recurrence === 'biweekly' ? 'Bi-weekly' : entry.recurrence[0].toUpperCase() + entry.recurrence.slice(1);
 function occurrenceDates(recurrence, startKey, endKey) {
@@ -278,7 +279,7 @@ function renderTransactions(transactions) {
   transactionPage = Math.min(transactionPage, totalPages);
   const pageStart = (transactionPage - 1) * transactionsPerPage;
   const recent = newestFirst.slice(pageStart, pageStart + transactionsPerPage);
-  list.innerHTML = recent.map(x => { const note = x.note ? escapeHTML(x.note) : 'No note added'; const schedule = x.recurring ? `<small class="recurrence-badge">↻ ${x.recurrence === 'custom' ? 'Custom cycle' : x.recurrence}</small>` : x.paymentNumber ? `<small class="payment-badge">Recurring ${x.paymentNumber}/${x.paymentCount}</small>` : ''; const timestamp = timeLabel(x.createdAt); const dateAndTime = `<span>${dateLabel(x.date)}</span>${timestamp ? `<small>${timestamp}</small>` : ''}`; return `<div class="transaction-row"><label class="transaction-selector"><input class="transaction-select" data-id="${x.id}" type="checkbox" aria-label="Select ${x.description}" ${selectedTransactionIds.has(x.id) ? 'checked' : ''} /></label><div class="transaction-name">${icon(x.category)}<span>${x.description}${schedule}</span></div><span class="transaction-category">${x.category}</span><span class="transaction-note" tabindex="0"><span class="transaction-note-preview">${x.note ? note : '—'}</span><span class="transaction-note-detail" role="tooltip">${note}</span></span><time class="transaction-date" datetime="${x.createdAt || x.date}">${dateAndTime}</time><span class="transaction-amount ${x.type}">${x.type === 'income' ? '+' : '−'}${money(x.amount)} <button class="edit-transaction" data-id="${x.id}" aria-label="Edit ${x.description}">✎</button><button class="delete-transaction" data-id="${x.id}" aria-label="Delete ${x.description}">×</button></span></div>`; }).join('');
+  list.innerHTML = recent.map(x => { const note = x.note ? escapeHTML(x.note) : 'No note added'; const schedule = x.recurring ? `<small class="recurrence-badge">↻ ${x.recurrence === 'custom' ? 'Custom cycle' : x.recurrence}</small>` : x.paymentNumber ? `<small class="payment-badge">Recurring ${x.paymentNumber}/${x.paymentCount}</small>` : ''; const timestamp = timeLabel(x.transactionTime); const dateAndTime = `<span>${dateLabel(x.date)}</span>${timestamp ? `<small>${timestamp}</small>` : ''}`; return `<div class="transaction-row"><label class="transaction-selector"><input class="transaction-select" data-id="${x.id}" type="checkbox" aria-label="Select ${x.description}" ${selectedTransactionIds.has(x.id) ? 'checked' : ''} /></label><div class="transaction-name">${icon(x.category)}<span>${x.description}${schedule}</span></div><span class="transaction-category">${x.category}</span><span class="transaction-note" tabindex="0"><span class="transaction-note-preview">${x.note ? note : '—'}</span><span class="transaction-note-detail" role="tooltip">${note}</span></span><time class="transaction-date" datetime="${x.date}${x.transactionTime ? `T${x.transactionTime}` : ''}">${dateAndTime}</time><span class="transaction-amount ${x.type}">${x.type === 'income' ? '+' : '−'}${money(x.amount)} <button class="edit-transaction" data-id="${x.id}" aria-label="Edit ${x.description}">✎</button><button class="delete-transaction" data-id="${x.id}" aria-label="Delete ${x.description}">×</button></span></div>`; }).join('');
   list.classList.toggle('has-transactions', Boolean(recent.length));
   list.classList.remove('page-enter-next', 'page-enter-previous');
   if (transactionPageAnimation) {
@@ -388,6 +389,7 @@ function openTransactionModal(transaction = null) {
     const schedule = editingPaymentGroupId ? inferPaymentSchedule(paymentGroup(editingPaymentGroupId)) : null;
     if (schedule) editingTransactionId = null;
     form.elements.date.value = transaction.recurring ? transaction.startDate : schedule?.start || transaction.date;
+    form.elements.time.value = transaction.transactionTime || timeKey();
     form.elements.recurrence.value = transaction.recurring && transaction.recurrence === 'custom' ? 'weekly' : transaction.recurring ? transaction.recurrence : schedule?.recurrence || 'once';
     form.elements.recurrenceEnd.value = transaction.recurring?.endDate || schedule?.end || '';
   } else {
@@ -397,6 +399,7 @@ function openTransactionModal(transaction = null) {
     form.reset();
     setTransactionType('expense');
     form.elements.date.value = dateKey(new Date());
+    form.elements.time.value = timeKey();
     form.elements.recurrence.value = 'once';
     form.elements.recurrenceEnd.value = '';
     editingPaymentGroupId = null;
@@ -425,8 +428,8 @@ $('#transactionForm').addEventListener('submit', async (event) => {
   if (recurrence !== 'once' && form.get('recurrenceEnd') && form.get('recurrenceEnd') < startDate) {
     window.alert('The repeat end date must be on or after the start date.'); return;
   }
-  const transactionValues = { description: form.get('description').trim(), note: form.get('note').trim() || null, category: form.get('category'), amount: Number(form.get('amount')), type: selectedType, transaction_date: form.get('date') };
-  const recurringValues = { description: form.get('description').trim(), note: form.get('note').trim() || null, category: form.get('category'), amount: Number(form.get('amount')), type: selectedType, recurrence, start_date: startDate, end_date: form.get('recurrenceEnd') || null, cycle_end_date: null, updated_at: new Date().toISOString() };
+  const transactionValues = { description: form.get('description').trim(), note: form.get('note').trim() || null, category: form.get('category'), amount: Number(form.get('amount')), type: selectedType, transaction_date: form.get('date'), transaction_time: form.get('time') || null };
+  const recurringValues = { description: form.get('description').trim(), note: form.get('note').trim() || null, category: form.get('category'), amount: Number(form.get('amount')), type: selectedType, recurrence, start_date: startDate, end_date: form.get('recurrenceEnd') || null, cycle_end_date: null, transaction_time: form.get('time') || null, updated_at: new Date().toISOString() };
   const finiteSchedule = recurrence !== 'once' && Boolean(form.get('recurrenceEnd'));
   let result;
   if (finiteSchedule) {
