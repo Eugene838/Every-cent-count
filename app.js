@@ -200,6 +200,7 @@ function render() {
   const transactions = getMonthTransactions();
   const income = transactions.filter(x => x.type === 'income').reduce((sum, x) => sum + x.amount, 0);
   const spending = transactions.filter(x => x.type === 'expense').reduce((sum, x) => sum + x.amount, 0);
+  const savings = income - spending;
   const balance = currentBalance();
   const rate = income ? Math.max(0, Math.round(((income - spending) / income) * 100)) : 0;
   const used = data.budget ? Math.round((spending / data.budget) * 100) : 0;
@@ -211,7 +212,9 @@ function render() {
   $('#balanceValue').textContent = money(balance);
   const latestAdjustment = data.balanceAdjustments.at(-1);
   $('#balanceTrend').textContent = latestAdjustment ? `Last adjusted ${dateLabel(latestAdjustment.date)}` : 'Set your opening balance to get started';
-  $('#incomeValue').textContent = money(income); $('#spendingValue').textContent = money(spending); $('#savingRate').textContent = `${rate}%`;
+  $('#incomeValue').textContent = money(income); $('#spendingValue').textContent = money(spending); $('#savingValue').textContent = `${savings < 0 ? '−' : ''}${money(Math.abs(savings))}`;
+  $('#savingValue').classList.toggle('negative', savings < 0);
+  $('#savingTrend').textContent = income ? `${rate}% of income saved` : 'Income − spending';
   $('#incomeTrend').textContent = `${transactions.filter(x => x.type === 'income').length} income ${transactions.filter(x => x.type === 'income').length === 1 ? 'entry' : 'entries'}`;
   $('#spendingTrend').textContent = `${transactions.filter(x => x.type === 'expense').length} expense ${transactions.filter(x => x.type === 'expense').length === 1 ? 'entry' : 'entries'}`;
   $('#budgetPercent').textContent = data.budget ? `${used}%` : '—';
