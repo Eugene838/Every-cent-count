@@ -63,6 +63,7 @@ const getMonthTransactions = () => data.transactions.filter((entry) => entry.dat
 const currentBalance = () => { const today = dateKey(new Date()); return data.transactions.filter(entry => entry.date <= today).reduce((total, entry) => total + (entry.type === 'income' ? entry.amount : -entry.amount), 0) + data.balanceAdjustments.reduce((total, entry) => total + entry.amount, 0); };
 const icon = (category) => { const item = categoryInfo[category] || categoryInfo.Other; return `<span class="category-icon" style="background:${item.color}">${item.icon}</span>`; };
 const transactionFromRow = (row) => ({ id: row.id, description: row.description, note: row.note || '', category: row.category, amount: Number(row.amount), type: row.type, date: row.transaction_date, transactionTime: row.transaction_time || '', createdAt: row.created_at, recurrenceGroupId: row.recurrence_group_id || null, paymentNumber: row.recurrence_index || null, paymentCount: row.recurrence_count || null, recurring: false });
+const adjustmentFromRow = (row) => ({ id: row.id, amount: Number(row.amount), previousBalance: Number(row.previous_balance), newBalance: Number(row.new_balance), note: row.note, date: row.adjustment_date, createdAt: row.created_at });
 const recurringFromRow = (row) => ({ id: row.id, description: row.description, note: row.note || '', category: row.category, amount: Number(row.amount), type: row.type, recurrence: row.recurrence, startDate: row.start_date, endDate: row.end_date, cycleEndDate: row.cycle_end_date, transactionTime: row.transaction_time || '', createdAt: row.created_at });
 const addMonths = (date, count) => { const next = new Date(date.getFullYear(), date.getMonth() + count, 1); next.setDate(Math.min(date.getDate(), new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate())); return next; };
 const recurrenceLabel = (entry) => entry.recurrence === 'biweekly' ? 'Bi-weekly' : entry.recurrence[0].toUpperCase() + entry.recurrence.slice(1);
@@ -125,7 +126,6 @@ function scheduledTransactions() {
   });
 }
 const refreshScheduledTransactions = () => { data.transactions = [...data.oneOffTransactions, ...scheduledTransactions()]; };
-const adjustmentFromRow = (row) => ({ id: row.id, amount: Number(row.amount), previousBalance: Number(row.previous_balance), newBalance: Number(row.new_balance), note: row.note, date: row.adjustment_date, createdAt: row.created_at });
 const displayNameFor = (account) => account?.user_metadata?.username?.trim() || account?.email?.split('@')[0] || 'My profile';
 
 function renderProfile(account) {
@@ -223,7 +223,7 @@ function render() {
   $('#editBudget').textContent = data.budget ? 'Edit budget' : 'Set budget';
   $('#budgetProgress').style.width = `${usedCapped}%`;
   $('#budgetDonut').style.background = `conic-gradient(${spending > data.budget ? '#c26e68' : 'var(--green)'} 0deg ${usedCapped * 3.6}deg, #e5eee8 ${usedCapped * 3.6}deg 360deg)`;
-  renderMetricDetails(transactions); renderCategories(transactions); renderTransactions(data.transactions); renderChart(data.transactions); renderInsight(spending, income, used); renderBalanceHistory(); renderDescriptionSuggestions();
+  renderMetricDetails(transactions); renderCategories(transactions); renderTransactions(data.transactions); renderChart(data.transactions); renderInsight(spending, income, used); renderDescriptionSuggestions();
 }
 
 function renderMetricDetails(transactions) {
@@ -368,12 +368,6 @@ function renderInsight(spending, income, used) {
   $('#insightText').textContent = text;
 }
 
-function renderBalanceHistory() {
-  const entries = [...data.balanceAdjustments].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 3);
-  $('#balanceHistory').innerHTML = entries.map(entry => `<article class="balance-history-item"><strong>${money(entry.previousBalance)} → ${money(entry.newBalance)}</strong><p>${entry.note || 'Balance adjustment'}</p><small>${dateLabel(entry.date)}</small></article>`).join('');
-  $('#balanceHistoryEmpty').hidden = Boolean(entries.length);
-}
-
 function updateCategoryOptions() { $('#categoryInput').innerHTML = (selectedType === 'income' ? incomeCategories : expenseCategories).map(x => `<option>${x}</option>`).join(''); }
 function setTransactionType(type) { selectedType = type; document.querySelectorAll('.type-choice').forEach(x => x.classList.toggle('active', x.dataset.type === type)); updateCategoryOptions(); }
 function updateRecurrenceFields() {
@@ -504,13 +498,13 @@ document.querySelectorAll('.metric-detail-trigger').forEach(button => button.add
 }));
 document.addEventListener('click', () => document.querySelectorAll('.metric-detail-trigger').forEach(button => button.setAttribute('aria-expanded', 'false')));
 $('#editBudget').addEventListener('click', openBudget);
+$('#openBalanceModal').addEventListener('click', openBalanceModal);
 $('#budgetForm').addEventListener('submit', async (event) => {
   event.preventDefault(); const amount = Number(new FormData(event.target).get('budget'));
   const { data: row, error } = await db.from('budgets').upsert({ user_id: user.id, monthly_amount: amount, updated_at: new Date().toISOString() }, { onConflict: 'user_id' }).select('monthly_amount').single();
   if (error) { operationError(error); return; }
   data.budget = Number(row.monthly_amount); $('#budgetModal').close(); render();
 });
-$('#openBalanceModal').addEventListener('click', openBalanceModal); $('#openBalanceHistoryModal').addEventListener('click', openBalanceModal);
 $('#balanceForm').addEventListener('submit', async (event) => {
   event.preventDefault(); const form = new FormData(event.target); const previousBalance = currentBalance(); const newBalance = Number(form.get('balance'));
   const { data: row, error } = await db.from('balance_adjustments').insert({ user_id: user.id, amount: newBalance - previousBalance, previous_balance: previousBalance, new_balance: newBalance, note: form.get('note').trim() || null, adjustment_date: new Date().toISOString().slice(0, 10) }).select().single();

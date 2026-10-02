@@ -85,12 +85,6 @@
             </article>
           </section>
 
-          <section class="panel balance-history-panel" id="balance-history">
-            <div class="panel-heading"><div><p class="section-kicker">BALANCE LEDGER</p><h2>Balance adjustment history</h2></div><button class="text-button" id="openBalanceHistoryModal">Adjust balance</button></div>
-            <div class="balance-history-list" id="balanceHistory"></div>
-            <div class="empty-state balance-history-empty" id="balanceHistoryEmpty">No balance adjustments yet. Set your opening balance to create the first entry.</div>
-          </section>
-
           <section class="dashboard-grid">
             <article class="panel spending-panel" id="budgets">
               <div class="panel-heading">
@@ -172,10 +166,10 @@
     </dialog>
     <dialog id="balanceModal">
       <form method="dialog" id="balanceForm">
-        <div class="modal-header"><div><p class="section-kicker">BALANCE LEDGER</p><h2>Adjust available balance</h2></div><button class="close-modal" type="button" data-close="balanceModal" aria-label="Close">×</button></div>
+        <div class="modal-header"><div><p class="section-kicker">AVAILABLE BALANCE</p><h2>Adjust available balance</h2></div><button class="close-modal" type="button" data-close="balanceModal" aria-label="Close">×</button></div>
         <label>New available balance<input name="balance" type="number" step="0.01" required placeholder="0.00" /></label>
         <label>Note <input name="note" maxlength="60" placeholder="e.g. Opening balance" /></label>
-        <p class="form-note">We’ll record the difference as a balance adjustment without changing your income or expense entries.</p>
+        <p class="form-note">This records a balance adjustment without changing your income or expense transactions.</p>
         <button class="submit-transaction" type="submit">Save balance adjustment</button>
       </form>
     </dialog>
