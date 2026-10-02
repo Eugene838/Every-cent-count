@@ -90,22 +90,24 @@ function renderYear() {
     const income = entries.filter(entry => entry.type === 'income').reduce((total, entry) => total + entry.amount, 0);
     const spending = entries.filter(entry => entry.type === 'expense').reduce((total, entry) => total + entry.amount, 0);
     const adjustments = data.balanceAdjustments.filter(entry => entry.date.startsWith(key)).reduce((total, entry) => total + entry.amount, 0);
-    return { index, income, spending, adjustments, net: income - spending + adjustments, weeklySpending: getWeeklySpending(index, entries) };
+    return { index, income, spending, savings: income - spending, adjustments, net: income - spending + adjustments, weeklySpending: getWeeklySpending(index, entries) };
   });
   const totalIncome = months.reduce((total, month) => total + month.income, 0);
   const totalSpending = months.reduce((total, month) => total + month.spending, 0);
+  const totalSavings = months.reduce((total, month) => total + month.savings, 0);
   const totalNet = months.reduce((total, month) => total + month.net, 0);
   const adjustmentTotal = months.reduce((total, month) => total + month.adjustments, 0);
   $('#yearLabel').textContent = selectedYear;
   $('#yearlyTitle').textContent = `${selectedYear} financial summary`;
-  $('#yearlySummary').innerHTML = `<article class="yearly-page-metric"><span>YEARLY INCOME</span><strong>${money(totalIncome)}</strong><small>Across all income categories</small></article><article class="yearly-page-metric"><span>YEARLY SPENDING</span><strong>${money(totalSpending)}</strong><small>${data.budget ? `${money(data.budget * 12)} annual budget` : 'No budget set'}</small></article><article class="yearly-page-metric"><span>NET CHANGE</span><strong class="${totalNet >= 0 ? 'positive' : 'negative'}">${totalNet >= 0 ? '+' : '−'}${money(Math.abs(totalNet))}</strong><small>${adjustmentTotal ? `${adjustmentTotal >= 0 ? '+' : '−'}${money(Math.abs(adjustmentTotal))} balance adjustments` : 'No balance adjustments'}</small></article>`;
+  $('#yearlySummary').innerHTML = `<article class="yearly-page-metric"><span>YEARLY INCOME</span><strong>${money(totalIncome)}</strong><small>Across all income categories</small></article><article class="yearly-page-metric"><span>YEARLY SPENDING</span><strong>${money(totalSpending)}</strong><small>${data.budget ? `${money(data.budget * 12)} annual budget` : 'No budget set'}</small></article><article class="yearly-page-metric"><span>YEARLY SAVINGS</span><strong class="${totalSavings >= 0 ? 'positive' : 'negative'}">${totalSavings >= 0 ? '+' : '−'}${money(Math.abs(totalSavings))}</strong><small>Income minus spending</small></article><article class="yearly-page-metric"><span>NET CHANGE</span><strong class="${totalNet >= 0 ? 'positive' : 'negative'}">${totalNet >= 0 ? '+' : '−'}${money(Math.abs(totalNet))}</strong><small>${adjustmentTotal ? `${adjustmentTotal >= 0 ? '+' : '−'}${money(Math.abs(adjustmentTotal))} balance adjustments` : 'No balance adjustments'}</small></article>`;
   $('#yearlyRows').innerHTML = months.map(month => {
     const label = new Intl.DateTimeFormat('en-SG', { month: 'long' }).format(new Date(selectedYear, month.index, 1));
     const budgetStatus = data.budget ? `${Math.round((month.spending / data.budget) * 100)}% used` : 'No budget';
     const monthKey = `${selectedYear}-${String(month.index + 1).padStart(2, '0')}`;
     const weeklyDetails = month.weeklySpending.map((week, index) => `<li><a class="yearly-week-link" href="/home?month=${monthKey}&week=${week.weekStart}#insights">Week ${index + 1} (${week.firstDay}–${week.lastDay})</a><span>${money(week.total)}</span></li>`).join('');
-    return `<div class="yearly-row" tabindex="0"><span class="month-name">${label}<span class="yearly-week-detail" role="tooltip"><strong>${label} weekly spending</strong><ul>${weeklyDetails}</ul></span></span><span class="amount income-cell">${money(month.income)}</span><span class="amount spending-cell">${money(month.spending)}</span><span class="amount net-cell ${month.net >= 0 ? 'positive' : 'negative'}">${month.net >= 0 ? '+' : '−'}${money(Math.abs(month.net))}</span><span class="budget-status ${data.budget && month.spending > data.budget ? 'over' : ''}">${budgetStatus}</span></div>`;
+    return `<div class="yearly-row" tabindex="0"><span class="month-name">${label}<span class="yearly-week-detail" role="tooltip"><strong>${label} weekly spending</strong><ul>${weeklyDetails}</ul></span></span><span class="amount income-cell">${money(month.income)}</span><span class="amount spending-cell">${money(month.spending)}</span><span class="amount savings-cell ${month.savings >= 0 ? 'positive' : 'negative'}">${month.savings >= 0 ? '+' : '−'}${money(Math.abs(month.savings))}</span><span class="amount net-cell ${month.net >= 0 ? 'positive' : 'negative'}">${month.net >= 0 ? '+' : '−'}${money(Math.abs(month.net))}</span><span class="budget-status ${data.budget && month.spending > data.budget ? 'over' : ''}">${budgetStatus}</span></div>`;
   }).join('');
+  $('#yearlyTotal').innerHTML = `<strong>Total savings</strong><span>${money(totalIncome)}</span><span>${money(totalSpending)}</span><span class="${totalSavings >= 0 ? 'positive' : 'negative'}">${totalSavings >= 0 ? '+' : '−'}${money(Math.abs(totalSavings))}</span><span class="${totalNet >= 0 ? 'positive' : 'negative'}">${totalNet >= 0 ? '+' : '−'}${money(Math.abs(totalNet))}</span><span></span>`;
 }
 
 $('#previousYear').addEventListener('click', () => { selectedYear -= 1; renderYear(); });

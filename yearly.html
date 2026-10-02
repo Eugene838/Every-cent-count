@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20" />
+    <link rel="stylesheet" href="styles.css?v=21" />
   </head>
   <body>
     <div class="shell">
@@ -43,8 +43,9 @@
           <section class="panel yearly-panel">
             <div class="panel-heading"><div><p class="section-kicker">MONTH BY MONTH</p><h2 id="yearlyTitle">2026 financial summary</h2></div><span class="yearly-note">SGD</span></div>
             <div class="yearly-table">
-              <div class="yearly-head"><span>MONTH</span><span>INCOME</span><span>SPENDING</span><span>NET CHANGE</span><span>BUDGET</span></div>
+              <div class="yearly-head"><span>MONTH</span><span>INCOME</span><span>SPENDING</span><span>SAVINGS</span><span>NET CHANGE</span><span>BUDGET</span></div>
               <div id="yearlyRows"></div>
+              <div class="yearly-total" id="yearlyTotal"></div>
             </div>
           </section>
         </section>
@@ -52,6 +53,6 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js?v=2"></script>
-    <script src="yearly.js?v=11"></script>
+    <script src="yearly.js?v=12"></script>
   </body>
 </html>
